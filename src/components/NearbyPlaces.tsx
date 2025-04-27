@@ -234,8 +234,9 @@ function NearbyPlaces() {
     const filteredSortedPlaces = useMemo(() => {
         return places
             .filter(place => (place.rating || 0) > 3 && (place.userRatingCount || 0) > 10 && place.displayName)
-            .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)));
-    }, [places]); // Dependency remains 'places'
+            .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)))
+            .slice(0, 20);
+    }, [places]);
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
@@ -322,7 +323,7 @@ function NearbyPlaces() {
     return (
         <div className="nearby-places-container w-full md:h-screen flex flex-col">
             {/* Top Section: Title and Filters */} 
-            <div className='flex flex-col md:flex-row items-center w-full gap-4 p-4 pt-2'>
+            <div className='flex flex-col md:flex-row items-center w-full gap-4 p-2 pb-4 md:p-4'>
                 <div className='flex flex-col items-center gap-2'>
                     <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
                     <div className="flex items-center gap-2">
@@ -347,7 +348,7 @@ function NearbyPlaces() {
                     </div>
                 </div>
                 {/* Clickable Preset Type Chips */}
-                <div className="flex flex-row flex-wrap justify-center gap-1 mt-2">
+                <div className="flex flex-row flex-wrap justify-center gap-1">
                     {placeTypes.map(type => {
                         const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         return (
@@ -370,7 +371,7 @@ function NearbyPlaces() {
             {/* Main Content Area: Two Columns */}
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
-                <div className="w-full h-full">
+                <div className="w-full h-[50vh] md:h-full">
                     {/* Render Map Component only after initial center is determined */} 
                     {mapCenter && apiKey ? (
                         <MapComponent 
