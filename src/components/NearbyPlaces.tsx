@@ -1,42 +1,78 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import MapComponent from './MapComponent'; // Import the new MapComponent
 
 // Access the API key from environment variables
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
+// Updated interface for Text Search results
 interface Place {
-    place_id: string;
-    name: string;
-    vicinity?: string;
-    rating?: number;
-    user_ratings_total?: number;
-    types?: string[]; // Add types array to the interface
-    // Add other relevant properties from the API response if needed
+    id: string; // Text Search might not return place_id by default
+    displayName: { // Text Search uses displayName
+        text: string;
+        languageCode: string;
+    };
+    location: { // Text Search uses location
+        latitude: number;
+        longitude: number;
+    };
+    editorialSummary?: { // Text Search uses editorialSummary
+        text: string;
+        languageCode: string;
+    };
+    primaryType?: string; // Text Search uses primaryType
+    primaryTypeDisplayName?: {
+        text: string;
+        languageCode: string;
+    };
+    formattedAddress?: string; // Text Search uses formattedAddress
+    rating?: number; // Add rating back
+    userRatingCount?: number; // Add user rating count back (note: name differs slightly from Nearby Search)
+    // vicinity?: string; // Nearby Search field
+    // types?: string[]; // Nearby Search field
+    // Add other relevant properties from Text Search if needed
+    // e.g., priceLevel, rating (different structure potentially)
 }
 
+// Updated interface for Text Search API response
 interface PlacesApiResponse {
-    results: Place[];
-    status: string;
-    error_message?: string;
+    places: Place[]; // Text Search returns 'places'
+    // results: Place[]; // Nearby Search field
+    // status: string; // Nearby Search field
+    // error_message?: string; // Nearby Search field
+    // Add potential error fields from Text Search if needed
 }
 
-// Define the types for the dropdown
+// Define the types for the dropdown (can remain the same conceptually)
 const placeTypes = [
-    'food',
-    'natural_feature',
+    'scenic_spot',
+    'attraction',
+    'museum',
+    'viewpoint',
+    'lake',
+    'mountain_peak',
+    'hiking area',
+    'park',
     'place_of_worship',
+    'church',
     'point_of_interest',
     'atm',
+    'parking',
     'campground',
     'landmark',
     'gym',
     'university',
+    'groceries',
     'supermarket',
+    'bus stop',
     'train_station',
-    'park',
-    'meal_takeaway',
     'lodging',
-    'restaurant'
+    'hotel',
+    'takeaway',
+    'cafe',
+    'food',
+    'fast food',
+    'restaurant',
+    'pharmacy',
 ];
 
 // Define coordinates for Vienna as fallback
@@ -48,65 +84,109 @@ const viennaCenter = {
 function NearbyPlaces() {
     const [places, setPlaces] = useState<Place[]>([]);
     const [error, setError] = useState<string | null>(null);
-    // State for map's current viewport center and radius
-    const [latitude, setLatitude] = useState<number | null>(null);
-    const [longitude, setLongitude] = useState<number | null>(null);
-    const [radiusMeters, setRadiusMeters] = useState<number | null>(null);
-    // Initialize mapCenter to null until geolocation attempt completes
+    const [bounds, setBounds] = useState<google.maps.LatLngBoundsLiteral | null>(null);
     const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(null);
-    const [selectedType, setSelectedType] = useState<string>(''); // State for selected type filter
+    const [textQuery, setTextQuery] = useState<string>(''); // State for text query input
 
     // --- API Fetching --- 
-    // Modified fetchNearbyPlaces to accept parameters
-    const fetchNearbyPlaces = useCallback(async (lat: number, lng: number, radius: number) => {
+    // Modified fetchNearbyPlaces for Text Search
+    const fetchNearbyPlaces = useCallback(async (currentBounds: google.maps.LatLngBoundsLiteral, currentTextQuery: string) => {
         if (!GOOGLE_MAPS_API_KEY) {
             setError('API key is missing. Please add it to the .env file.');
             return;
         }
-        if (lat === null || lng === null || radius === null) {
-             // Don't fetch if map hasn't provided valid viewport yet
+        if (!currentBounds) {
+            // Don't fetch if map hasn't provided valid bounds yet
             return;
         }
 
         setError(null);
 
-        // Use the Vite proxy path for development to avoid CORS
-        let apiUrl = `/api/googlemaps/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&rankby=prominence&key=${GOOGLE_MAPS_API_KEY}`;
-
-        // Append type if selected
-        if (selectedType) {
-            apiUrl += `&type=${selectedType}`;
+        const apiUrl = 'https://places.googleapis.com/v1/places:searchText';
+        
+        // Use the textQuery state directly
+        if (!currentTextQuery.trim()) {
+            // Should not happen if useEffect check is working, but safety check
+            setPlaces([]);
+            return;
         }
+
+        // Define the request body
+        const requestBody = {
+            textQuery: currentTextQuery.trim(), // Use state directly
+            locationRestriction: {
+                rectangle: {
+                    low: {
+                        latitude: currentBounds.south,
+                        longitude: currentBounds.west
+                    },
+                    high: {
+                        latitude: currentBounds.north,
+                        longitude: currentBounds.east
+                    }
+                }
+            }
+        };
+        
+        // Define headers
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            // Specify desired fields using FieldMask
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.formattedAddress,places.rating,places.userRatingCount,places.editorialSummary,places.primaryType,places.primaryTypeDisplayName'
+        };
 
         try {
-            const response = await fetch(apiUrl);
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                // Handle HTTP errors (e.g., 4xx, 5xx)
+                const errorData = await response.json().catch(() => ({})); // Try to parse error JSON
+                console.error('Google Places API HTTP Error:', response.status, errorData);
+                setError(`API Error: ${response.status} - ${errorData?.error?.message || 'Failed to fetch'}`);
+                setPlaces([]);
+                return;
+            }
+
             const data: PlacesApiResponse = await response.json();
 
-            if (data.status === 'OK') {
-                setPlaces(data.results || []);
-            } else if (data.status === 'ZERO_RESULTS') {
-                setPlaces([]); // Clear places if no results
-                // Optional: setError('No places found matching your criteria in this area.');
+            // Text Search returns places array directly
+            if (data.places && data.places.length > 0) {
+                setPlaces(data.places);
             } else {
-                console.error('Google Places API Error:', data.status, data.error_message);
-                setError(`API Error: ${data.error_message || data.status}`);
-                setPlaces([]); // Clear places on error
+                setPlaces([]); // Clear places if no results or empty array
+                // Optional: setError('No places found matching your criteria in this area.');
             }
-        } catch (err) {
+
+        } catch (err: unknown) { // Catch unknown error type
             console.error('Network or Fetch Error:', err);
-            setError(`An unexpected error occurred.`);
+            // Type check before accessing properties
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(`An unexpected error occurred: ${errorMessage}`);
             setPlaces([]); // Clear places on error
         }
-    }, [selectedType]); // Depend only on selectedType for *refetching* with same location
+    }, []); // Removed selectedType dependency, query is passed as argument
 
-    // Effect to fetch places when selectedType changes (using current map viewport)
+    // Effect to fetch places when bounds or textQuery change
     useEffect(() => {
-        if (latitude !== null && longitude !== null && radiusMeters !== null) {
-            fetchNearbyPlaces(latitude, longitude, radiusMeters);
+        if (bounds && textQuery.trim()) { // Only fetch if bounds exist and query is not empty
+            fetchNearbyPlaces(bounds, textQuery);
+        } else {
+            setPlaces([]); // Clear places if query is empty or bounds are null
         }
-        // This effect runs when selectedType changes, OR when the initial valid viewport is set
-    }, [selectedType, latitude, longitude, radiusMeters, fetchNearbyPlaces]);
+        // This effect runs when bounds OR textQuery changes
+    }, [bounds, textQuery, fetchNearbyPlaces]);
 
+    // Derived state for filtered and sorted places using useMemo for efficiency
+    const filteredSortedPlaces = useMemo(() => {
+        return places
+            .filter(place => (place.rating || 0) > 3 && (place.userRatingCount || 0) > 10 && place.displayName)
+            .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)));
+    }, [places]); // Recompute only when 'places' state changes
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
@@ -129,56 +209,56 @@ function NearbyPlaces() {
                 setMapCenter(viennaCenter);
             }
         );
-    }, []); // Run only once on mount
+    }, []);
 
-    // --- Callback for MapComponent --- 
-    const handleMapViewportChange = useCallback((lat: number, lng: number, radius: number) => {
-        // Update state with the new viewport details from the map
-        setLatitude(lat);
-        setLongitude(lng);
-        setRadiusMeters(radius);
-        setMapCenter({ lat, lng }); // Optionally update map center state if needed elsewhere
-        
-        // Trigger fetch with the new map viewport
-        // fetchNearbyPlaces is already called by the useEffect above when lat/lng/radius change
-        // No need to call it directly here unless the useEffect dependencies are different
-
-    }, []); // No dependencies needed here, it just sets state
-
-    // Filter places by selected type
-    const filteredPlaces = places.filter(place => !selectedType || place.types?.includes(selectedType));
+    const handleMapViewportChange = useCallback((newBounds: google.maps.LatLngBoundsLiteral | null) => {
+        setBounds(newBounds);
+    }, []);
 
     return (
         // Make the main container full height
         <div className="nearby-places-container w-full h-screen flex flex-col">
-            {/* Top Section: Title and Filters */}
-            <div className='flex flex-row items-center justify-between w-full gap-4 p-4'>
-                <h1>Top Prominent Places</h1>
-                <select 
-                    id="placeType"
-                    value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="rounded-md dark:bg-gray-800 dark:text-white shadow-sm focus:ring-indigo-500 text-sm py-1.5 pl-2 pr-8"
-                >
-                    <option value="">All Types</option>
-                    {placeTypes.map(type => (
-                        <option key={type} value={type}>
-                            {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {/* Format for display */}
-                        </option>
-                    ))}
-                </select>
+            {/* Top Section: Title and Filters */} 
+            <div className='flex flex-row items-center w-full gap-4 p-4 pt-2'>
+                <div className='flex flex-col gap-2'>
+                    <h1 className='flex text-3xl font-semibold flex-nowrap'>Prominent Places</h1>
+                    <input 
+                        type="text"
+                        disabled
+                        value={textQuery}
+                        onChange={(e) => setTextQuery(e.target.value.trim())}
+                        placeholder="Search for places (e.g., 'park', 'restaurant')"
+                        className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                    />
+                </div>
+                {/* Clickable Preset Type Chips */}
+                <div className="flex flex-1 flex-wrap justify-center gap-1 mt-2">
+                    {placeTypes.map(type => {
+                        const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        return (
+                            <span 
+                                key={type} 
+                                onClick={() => setTextQuery(formattedType.toLowerCase().trim())} // Set query on click
+                                className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
+                            >
+                                {formattedType}
+                            </span>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Main Content Area: Two Columns */}
             <div className="flex flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
-                <div className="w-2/3 h-full p-2"> {/* Map column takes 2/3 width */}
+                <div className="w-full h-full">
                     {/* Render Map Component only after initial center is determined */} 
                     {mapCenter && GOOGLE_MAPS_API_KEY ? (
                         <MapComponent 
                             apiKey={GOOGLE_MAPS_API_KEY} 
                             initialCenter={mapCenter} 
                             onViewportChange={handleMapViewportChange} 
+                            places={filteredSortedPlaces} // Pass filtered & sorted places
                         />
                     ) : (
                          !GOOGLE_MAPS_API_KEY ? (
@@ -192,67 +272,66 @@ function NearbyPlaces() {
                 </div>
 
                 {/* Right Column: Place List */}
-                <div className="w-1/3 h-full overflow-y-auto p-2"> {/* List column takes 1/3 width, scrolls vertically */} 
+                <div className="w-[32rem] h-full overflow-y-auto"> {/* List column takes 1/3 width, scrolls vertically */} 
                     {/* Display Loading/Error specific to API fetch */} 
                     {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
                     {/* You might want a dedicated loading state for the API call triggered by map changes */} 
                     {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
 
-                    {/* Display List */} 
-                    {filteredPlaces.length > 0 ? (
-                        <ul className="nearby-places-list list-none p-0">
-                            {filteredPlaces.sort((a, b) => (b.user_ratings_total || 0) - (a.user_ratings_total || 0))
-                            .map((place) => {
-                                // Construct Google Maps URL
-                                const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}&query_place_id=${place.place_id}`;
-                                
-                                const handleClick = () => {
-                                    window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
-                                };
+                    {/* Display List - Updated for Text Search fields */} 
+                    {filteredSortedPlaces.length > 0 ? (
+                        <ul>
+                            {filteredSortedPlaces.map((place) => (
+                                // Wrap list item in a link to Google Maps
+                                <a 
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || '')}&query_place_id=${place.id}`}
+                                    key={place.id} // Use place.id as key for the link
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                                >
+                                    {/* List Item Content */}
+                                    <h3 className="text-lg font-semibold mb-1 text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
+                                    
+                                    {/* Rating Line */} 
+                                    {(place.rating && place.userRatingCount) && (
+                                        <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
+                                            <span className="mr-1">{place.rating.toFixed(1)}</span>
+                                            <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
+                                            <span>({place.userRatingCount.toLocaleString()})</span>
+                                        </div>
+                                    )}
 
-                                return (
-                                    <li 
-                                        key={place.place_id} 
-                                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4 hover:shadow-lg transition-shadow duration-200 ease-in-out cursor-pointer"
-                                        onClick={handleClick}
-                                    >
-                                        <strong className="block font-bold text-lg text-gray-900 dark:text-white mb-1">{place.name}</strong>
-                                        {place.vicinity && <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{place.vicinity}</p>}
-                                        {/* Render Types as Tags */} 
-                                        {place.types && place.types.length > 0 && (
-                                            <div className="flex flex-wrap w-full justify-center gap-1 mb-2">
-                                                {place.types.map(type => (
-                                                    <span 
-                                                        key={type} 
-                                                        className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-0.5 rounded cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors duration-150"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation(); // Prevent card click event
-                                                            // Only set type if it's one of the allowed types in our dropdown list
-                                                            if (placeTypes.includes(type)) {
-                                                              setSelectedType(type); 
-                                                            }
-                                                        }}
-                                                    >
-                                                        {type.replace(/_/g, ' ')} {/* Simple formatting */}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {place.rating && (
-                                            <p className="text-sm mb-1">
-                                                <span className="text-yellow-500">★ {place.rating.toFixed(1)}</span> 
-                                                <span className="text-xs text-gray-500 dark:text-gray-300 ml-2">({place.user_ratings_total} reviews)</span>
-                                            </p>
-                                        )}
-                                    </li>
-                                );
-                            })}
+                                    {/* Primary Type */}
+                                    {place.primaryTypeDisplayName && (
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                            <span 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Prevent link navigation
+                                                    e.preventDefault(); // Prevent link navigation (extra safety)
+                                                    setTextQuery(place.primaryTypeDisplayName?.text.toLowerCase().trim() || ''); // Set query to chip text
+                                                }}
+                                                className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
+                                                title={`Search for ${place.primaryTypeDisplayName.text}`}
+                                            >
+                                                {place.primaryTypeDisplayName.text}
+                                            </span>
+                                        </p>
+                                    )}
+
+                                    {/* Editorial Summary */}
+                                    {place.editorialSummary && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            {place.editorialSummary.text}
+                                        </p>
+                                    )}
+                                </a>
+                            ))}
                         </ul>
                     ) : (
-                         !error && latitude && longitude && (
-                             <p className="text-gray-500 dark:text-gray-400 text-center p-4">No places found matching your criteria in the current map area.</p>
-                         )
-                         // Don't show 'No places' if there's an error or location is not ready
+                        !error && bounds && textQuery.trim() && <p>No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
+                        // Show message only if not errored, bounds exist, and query was attempted
+                        // Optionally add a message for when the query is empty
                     )}
                 </div>
             </div>
