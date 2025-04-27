@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import MapComponent from './MapComponent'; // Import the new MapComponent
 
-// Access the API key from environment variables
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+// Define the key used in localStorage
+const LOCAL_STORAGE_API_KEY = 'find_best_places.maps_api_key';
 
 // Updated interface for Text Search results
 interface Place {
@@ -48,13 +48,14 @@ const placeTypes = [
     'attraction',
     'museum',
     'viewpoint',
-    'observation deck',
+    'observation_deck',
     'lake',
-    'swimming pool',
+    'swimming_pool',
     'beach',
     'mountain_peak',
+    'mountain_pass',
     'rock_climbing',
-    'hiking area',
+    'hiking_area',
     'national_park',
     'park',
     'place_of_worship',
@@ -67,23 +68,25 @@ const placeTypes = [
     'bridge',
     'gym',
     'university',
+    'library',
     'groceries',
     'supermarket',
-    'bus stop',
+    'bus_stop',
     'train_station',
     'subway_station',
     'lodging',
     'hotel',
     'takeaway',
     'cafe',
+    'bakery',
     'food',
-    'fast food',
+    'fast_food',
     'restaurant',
     'bar',
-    'gas station',
+    'gas_station',
     'pharmacy',
-    'shopping mall',
-    'notable street',
+    'shopping_mall',
+    'notable_street',
 ];
 
 // Define coordinates for Vienna as fallback
@@ -100,11 +103,29 @@ function NearbyPlaces() {
     const [textQuery, setTextQuery] = useState<string>(''); // State for the *submitted* search query
     const [inputValue, setInputValue] = useState<string>(''); // State for the current input field value
 
+    // State for managing API Key from localStorage
+    const [apiKey, setApiKey] = useState<string | null>(null);
+    const [isApiKeySet, setIsApiKeySet] = useState<boolean>(false);
+    const [inputApiKey, setInputApiKey] = useState<string>(''); // For the API key input form
+
+    // Effect to check localStorage for API key on initial load
+    useEffect(() => {
+        const storedApiKey = localStorage.getItem(LOCAL_STORAGE_API_KEY);
+        if (storedApiKey) {
+            setApiKey(storedApiKey);
+            setIsApiKeySet(true);
+        } else {
+            setIsApiKeySet(false); // Explicitly set to false if not found
+        }
+    }, []); // Run only once on mount
+
     // --- API Fetching --- 
     // Modified fetchNearbyPlaces for Text Search
     const fetchNearbyPlaces = useCallback(async (currentBounds: google.maps.LatLngBoundsLiteral, currentTextQuery: string) => {
-        if (!GOOGLE_MAPS_API_KEY) {
-            setError('API key is missing. Please add it to the .env file.');
+        // Check if API key is set in state
+        if (!apiKey) {
+            setError('API key is missing. Please enter it below.'); // Update error message
+            setPlaces([]); // Clear places if no key
             return;
         }
         if (!currentBounds) {
@@ -140,10 +161,10 @@ function NearbyPlaces() {
             }
         };
         
-        // Define headers
+        // Define headers using the apiKey from state
         const headers = {
             'Content-Type': 'application/json',
-            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-Api-Key': apiKey, // Use the apiKey from state
             // Specify desired fields using FieldMask
             'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.formattedAddress,places.rating,places.userRatingCount,places.editorialSummary,places.primaryType,places.primaryTypeDisplayName'
         };
@@ -159,7 +180,16 @@ function NearbyPlaces() {
                 // Handle HTTP errors (e.g., 4xx, 5xx)
                 const errorData = await response.json().catch(() => ({})); // Try to parse error JSON
                 console.error('Google Places API HTTP Error:', response.status, errorData);
-                setError(`API Error: ${response.status} - ${errorData?.error?.message || 'Failed to fetch'}`);
+                // Check for specific API key related errors
+                if (response.status === 403 || (errorData?.error?.message && errorData.error.message.includes('API key'))) {
+                    setError('Invalid API Key provided. Please check and re-enter.');
+                    // Optionally clear the invalid key and force re-entry
+                    // localStorage.removeItem(LOCAL_STORAGE_API_KEY);
+                    // setApiKey(null);
+                    // setIsApiKeySet(false);
+                } else {
+                    setError(`API Error: ${response.status} - ${errorData?.error?.message || 'Failed to fetch'}`);
+                }
                 setPlaces([]);
                 return;
             }
@@ -181,24 +211,30 @@ function NearbyPlaces() {
             setError(`An unexpected error occurred: ${errorMessage}`);
             setPlaces([]); // Clear places on error
         }
-    }, []); // Removed selectedType dependency, query is passed as argument
+    }, [apiKey]); // Add apiKey as a dependency
 
-    // Effect to fetch places when bounds or textQuery change
+    // Effect to fetch places when bounds or textQuery change (and API key is set)
     useEffect(() => {
-        if (bounds && textQuery.trim()) { // Only fetch if bounds exist and query is not empty
+        if (isApiKeySet && apiKey && bounds && textQuery.trim()) { // Only fetch if API key is set, bounds exist and query is not empty
             fetchNearbyPlaces(bounds, textQuery);
-        } else {
-            setPlaces([]); // Clear places if query is empty or bounds are null
+        } else if (!isApiKeySet) {
+            // Don't fetch if API key is not set, clear places/error related to fetching
+            setPlaces([]);
+            if (error !== 'API key is missing. Please enter it below.') { // Avoid resetting the initial prompt
+                 setError(null);
+            }
+        } else if (!textQuery.trim()) {
+            setPlaces([]); // Clear places if query is empty
         }
-        // This effect runs when bounds OR textQuery changes
-    }, [bounds, textQuery, fetchNearbyPlaces]);
+        // This effect runs when bounds, textQuery, isApiKeySet, or fetchNearbyPlaces changes
+    }, [bounds, textQuery, isApiKeySet, apiKey, fetchNearbyPlaces, error]); // Include apiKey, isApiKeySet, and error
 
     // Derived state for filtered and sorted places using useMemo for efficiency
     const filteredSortedPlaces = useMemo(() => {
         return places
             .filter(place => (place.rating || 0) > 3 && (place.userRatingCount || 0) > 10 && place.displayName)
             .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)));
-    }, [places]); // Recompute only when 'places' state changes
+    }, [places]); // Dependency remains 'places'
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
@@ -235,11 +271,54 @@ function NearbyPlaces() {
         setBounds(newBounds);
     }, []);
 
+    // Handler to save the API key from the form
+    const handleSaveApiKey = () => {
+        if (inputApiKey.trim()) {
+            localStorage.setItem(LOCAL_STORAGE_API_KEY, inputApiKey.trim());
+            setApiKey(inputApiKey.trim());
+            setIsApiKeySet(true);
+            setError(null); // Clear any previous errors
+            setInputApiKey(''); // Clear the input field
+        } else {
+            setError("API Key cannot be empty.");
+        }
+    };
+
+    // --- Rendering --- 
+
+    // Render API Key input form if key is not set
+    if (!isApiKeySet) {
+        return (
+            <div style={{ padding: '20px', maxWidth: '400px', margin: 'auto', textAlign: 'center' }}>
+                <h2>Enter Google Maps API Key</h2>
+                <p>A Google Maps API key with Places API enabled is required to use this application.</p>
+                <input 
+                    type="password" 
+                    value={inputApiKey}
+                    onChange={(e) => setInputApiKey(e.target.value)}
+                    placeholder="Paste your API Key here"
+                    style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }}
+                />
+                <button 
+                    onClick={handleSaveApiKey}
+                    style={{ padding: '10px 20px', cursor: 'pointer' }}
+                >
+                    Save and Load Map
+                </button>
+                {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+                 <p style={{marginTop: '20px', fontSize: '0.9em', color: '#666'}}>
+                    Your API key will be stored locally in your browser's localStorage.<br/>
+                    <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener noreferrer">How to get an API Key</a>
+                </p>
+            </div>
+        );
+    }
+
+    // Render map and places list if API key IS set
     return (
-        // Make the main container full height
-        <div className="nearby-places-container w-full h-screen flex flex-col">
+        <div className="nearby-places-container w-full md:h-screen flex flex-col">
             {/* Top Section: Title and Filters */} 
-            <div className='flex flex-row items-center w-full gap-4 p-4 pt-2'>
+            <div className='flex flex-col md:flex-row items-center w-full gap-4 p-4 pt-2'>
                 <div className='flex flex-col items-center gap-2'>
                     <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
                     <div className="flex items-center gap-2">
@@ -264,7 +343,7 @@ function NearbyPlaces() {
                     </div>
                 </div>
                 {/* Clickable Preset Type Chips */}
-                <div className="flex flex-1 flex-wrap justify-center gap-1 mt-2">
+                <div className="flex flex-row flex-wrap justify-center gap-1 mt-2">
                     {placeTypes.map(type => {
                         const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         return (
@@ -285,21 +364,21 @@ function NearbyPlaces() {
             </div>
 
             {/* Main Content Area: Two Columns */}
-            <div className="flex flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
+            <div className="flex flex-col md:flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
                 <div className="w-full h-full">
                     {/* Render Map Component only after initial center is determined */} 
-                    {mapCenter && GOOGLE_MAPS_API_KEY ? (
+                    {mapCenter && apiKey ? (
                         <MapComponent 
-                            apiKey={GOOGLE_MAPS_API_KEY} 
+                            apiKey={apiKey} 
                             initialCenter={mapCenter} 
                             onViewportChange={handleMapViewportChange} 
                             places={filteredSortedPlaces} // Pass filtered & sorted places
                         />
                     ) : (
-                         !GOOGLE_MAPS_API_KEY ? (
+                         !apiKey ? (
                             <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
-                                Map cannot be displayed: Google Maps API Key is missing. Please set VITE_GOOGLE_MAPS_API_KEY in your .env file.
+                                Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.
                             </div>
                          ) : (
                             <div className="flex items-center justify-center h-full">Determining initial map location...</div> // Show message while waiting for geolocation
@@ -308,7 +387,7 @@ function NearbyPlaces() {
                 </div>
 
                 {/* Right Column: Place List */}
-                <div className="w-[32rem] h-full overflow-y-auto"> {/* List column takes 1/3 width, scrolls vertically */} 
+                <div className="w-full md:w-[32rem] md:h-full overflow-y-auto"> {/* List column takes 1/3 width, scrolls vertically */} 
                     {/* Display Loading/Error specific to API fetch */} 
                     {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
                     {/* You might want a dedicated loading state for the API call triggered by map changes */} 
