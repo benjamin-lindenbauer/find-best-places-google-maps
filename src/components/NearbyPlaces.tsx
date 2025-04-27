@@ -50,9 +50,12 @@ const placeTypes = [
     'viewpoint',
     'observation deck',
     'lake',
+    'swimming pool',
     'beach',
     'mountain_peak',
+    'rock_climbing',
     'hiking area',
+    'national_park',
     'park',
     'place_of_worship',
     'church',
@@ -61,12 +64,14 @@ const placeTypes = [
     'parking',
     'campground',
     'landmark',
+    'bridge',
     'gym',
     'university',
     'groceries',
     'supermarket',
     'bus stop',
     'train_station',
+    'subway_station',
     'lodging',
     'hotel',
     'takeaway',
@@ -74,7 +79,11 @@ const placeTypes = [
     'food',
     'fast food',
     'restaurant',
+    'bar',
+    'gas station',
     'pharmacy',
+    'shopping mall',
+    'notable street',
 ];
 
 // Define coordinates for Vienna as fallback
@@ -231,7 +240,7 @@ function NearbyPlaces() {
         <div className="nearby-places-container w-full h-screen flex flex-col">
             {/* Top Section: Title and Filters */} 
             <div className='flex flex-row items-center w-full gap-4 p-4 pt-2'>
-                <div className='flex flex-col gap-2'>
+                <div className='flex flex-col items-center gap-2'>
                     <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
                     <div className="flex items-center gap-2">
                         <input 
@@ -240,7 +249,7 @@ function NearbyPlaces() {
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
                             onKeyDown={handleInputKeyDown} // Handle Enter key press
                             placeholder="Search for places (e.g., 'park') or press Enter"
-                            className="w-36 px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            className="w-[14rem] px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                         />
                         <button 
                             onClick={() => {
