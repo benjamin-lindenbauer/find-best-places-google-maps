@@ -86,7 +86,8 @@ function NearbyPlaces() {
     const [error, setError] = useState<string | null>(null);
     const [bounds, setBounds] = useState<google.maps.LatLngBoundsLiteral | null>(null);
     const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(null);
-    const [textQuery, setTextQuery] = useState<string>(''); // State for text query input
+    const [textQuery, setTextQuery] = useState<string>(''); // State for the *submitted* search query
+    const [inputValue, setInputValue] = useState<string>(''); // State for the current input field value
 
     // --- API Fetching --- 
     // Modified fetchNearbyPlaces for Text Search
@@ -211,6 +212,14 @@ function NearbyPlaces() {
         );
     }, []);
 
+    // Handle Enter key press in the input field
+    const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent potential form submission
+            setTextQuery(inputValue.trim()); // Set the main query state to trigger fetch
+        }
+    };
+
     const handleMapViewportChange = useCallback((newBounds: google.maps.LatLngBoundsLiteral | null) => {
         setBounds(newBounds);
     }, []);
@@ -221,13 +230,13 @@ function NearbyPlaces() {
             {/* Top Section: Title and Filters */} 
             <div className='flex flex-row items-center w-full gap-4 p-4 pt-2'>
                 <div className='flex flex-col gap-2'>
-                    <h1 className='flex text-3xl font-semibold flex-nowrap'>Prominent Places</h1>
+                    <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
                     <input 
                         type="text"
-                        disabled
-                        value={textQuery}
-                        onChange={(e) => setTextQuery(e.target.value.trim())}
-                        placeholder="Search for places (e.g., 'park', 'restaurant')"
+                        value={inputValue} // Controlled by inputValue state
+                        onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
+                        onKeyDown={handleInputKeyDown} // Handle Enter key press
+                        placeholder="Search for places (e.g., 'park') or press Enter"
                         className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                     />
                 </div>
@@ -238,7 +247,11 @@ function NearbyPlaces() {
                         return (
                             <span 
                                 key={type} 
-                                onClick={() => setTextQuery(formattedType.toLowerCase().trim())} // Set query on click
+                                onClick={() => {
+                                    const formatted = formattedType.toLowerCase().trim();
+                                    setInputValue(formatted); // Update input box
+                                    setTextQuery(formatted); // Set query immediately
+                                }}
                                 className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
                             >
                                 {formattedType}
@@ -309,7 +322,9 @@ function NearbyPlaces() {
                                                 onClick={(e) => {
                                                     e.stopPropagation(); // Prevent link navigation
                                                     e.preventDefault(); // Prevent link navigation (extra safety)
-                                                    setTextQuery(place.primaryTypeDisplayName?.text.toLowerCase().trim() || ''); // Set query to chip text
+                                                    const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
+                                                    setInputValue(typeText); // Update input box
+                                                    setTextQuery(typeText); // Set query immediately
                                                 }}
                                                 className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
                                                 title={`Search for ${place.primaryTypeDisplayName.text}`}
@@ -329,9 +344,11 @@ function NearbyPlaces() {
                             ))}
                         </ul>
                     ) : (
-                        !error && bounds && textQuery.trim() && <p>No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
-                        // Show message only if not errored, bounds exist, and query was attempted
-                        // Optionally add a message for when the query is empty
+                        !error && bounds && textQuery.trim() ?
+                        <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
+                        :
+                        <p className="p-4">Select a place type</p>
+
                     )}
                 </div>
             </div>
