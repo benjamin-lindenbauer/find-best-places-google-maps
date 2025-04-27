@@ -102,6 +102,7 @@ function NearbyPlaces() {
     const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(null);
     const [textQuery, setTextQuery] = useState<string>(''); // State for the *submitted* search query
     const [inputValue, setInputValue] = useState<string>(''); // State for the current input field value
+    const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null); // State for user's current location
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -238,26 +239,29 @@ function NearbyPlaces() {
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
-        if (!navigator.geolocation) {
-            console.log('Geolocation not supported, defaulting to Vienna.');
-            setMapCenter(viennaCenter);
-            return;
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const currentLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    };
+                    setMapCenter(currentLocation);
+                    setUserLocation(currentLocation); // Store user location
+                },
+                () => {
+                    // Handle geolocation error (e.g., user denied permission)
+                    console.warn('Geolocation failed or permission denied. Falling back to default.');
+                    setMapCenter(viennaCenter); // Fallback to default
+                    // setUserLocation(null); // Explicitly set userLocation to null if failed
+                }
+            );
+        } else {
+            // Browser doesn't support Geolocation
+            console.warn('Geolocation not supported by this browser. Falling back to default.');
+            setMapCenter(viennaCenter); // Fallback to default
         }
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                console.log('Geolocation success, using device location.');
-                setMapCenter({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
-            },
-            (err) => {
-                console.warn(`Geolocation failed (${err.message}), defaulting to Vienna.`);
-                setMapCenter(viennaCenter);
-            }
-        );
-    }, []);
+    }, []); // Run only once on mount
 
     // Handle Enter key press in the input field
     const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -371,9 +375,10 @@ function NearbyPlaces() {
                     {mapCenter && apiKey ? (
                         <MapComponent 
                             apiKey={apiKey} 
-                            initialCenter={mapCenter} 
+                            initialCenter={mapCenter || viennaCenter} 
                             onViewportChange={handleMapViewportChange} 
                             places={filteredSortedPlaces} // Pass filtered & sorted places
+                            userLocation={userLocation} // Pass user's location
                         />
                     ) : (
                          !apiKey ? (
