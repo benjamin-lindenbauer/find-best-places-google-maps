@@ -445,8 +445,7 @@ function NearbyPlaces() {
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
                 <div className="w-full h-[50vh] md:h-full">
-                    {/* Render Map Component only after initial center is determined */} 
-                    {mapCenter && apiKey ? (
+                    {apiKey ? (
                         <MapComponent 
                             apiKey={apiKey} 
                             initialCenter={mapCenter || viennaCenter} 
@@ -456,13 +455,9 @@ function NearbyPlaces() {
                             userLocation={userLocation}
                         />
                     ) : (
-                         !apiKey ? (
-                            <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
-                                Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.
-                            </div>
-                         ) : (
-                            <div className="flex items-center justify-center h-full">Determining initial map location...</div> // Show message while waiting for geolocation
-                         )
+                        <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
+                            Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.
+                        </div>
                     )}
                 </div>
 
