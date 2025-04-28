@@ -73,8 +73,6 @@ function MapComponent({
 
       // Call the parent component's callback with the new viewport bounds
       onViewportChange(newBoundsLiteral);
-    } else {
-      console.log("Map Idle: No significant bounds change detected. Skipping update."); // DEBUG LOG
     }
   }, [map, onViewportChange, lastReportedBounds]); // Update dependencies
 

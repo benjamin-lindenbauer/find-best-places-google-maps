@@ -103,6 +103,7 @@ function NearbyPlaces() {
     const [textQuery, setTextQuery] = useState<string>(''); // State for the *submitted* search query
     const [inputValue, setInputValue] = useState<string>(''); // State for the current input field value
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null); // State for user's current location
+    const [locationInputValue, setLocationInputValue] = useState<string>(''); // State for the location input field value
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -289,7 +290,54 @@ function NearbyPlaces() {
         }
     };
 
-    // --- Rendering --- 
+    // Handle submission for the new location input
+    const handleLocationSearchSubmit = async () => {
+        if (!locationInputValue.trim()) {
+            return;
+        }
+
+        const locationQuery = locationInputValue.trim();
+        setError(null); 
+
+        // Check if API key exists before making the call
+        if (!apiKey) {
+            setError("API key is missing. Please configure it first.");
+            return;
+        }
+
+        try {
+            const apiUrl = 'https://maps.googleapis.com/maps/api/geocode/json';
+            const params = {
+                address: locationQuery,
+                key: apiKey,
+            };
+            const response = await fetch(`${apiUrl}?${new URLSearchParams(params).toString()}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error_message || `API request failed with status ${response.status}`);
+            }
+
+            const data = await response.json(); 
+
+            if (data.results && data.results.length > 0 && data.results[0].geometry && data.results[0].geometry.location) {
+                const { lat, lng } = data.results[0].geometry.location;
+                setMapCenter({ lat, lng });
+                setLocationInputValue('');
+            } else {
+                setError("Could not find location data for the entered place.");
+            }
+
+        } catch (err: unknown) { // Use unknown instead of any
+            console.error("Error searching for location:", err);
+            // Type check before accessing properties
+            let errorMessage = "An error occurred while searching for the location.";
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            }
+            setError(errorMessage);
+        }
+    };
 
     // Render API Key input form if key is not set
     if (!isApiKeySet) {
@@ -323,17 +371,30 @@ function NearbyPlaces() {
     return (
         <div className="nearby-places-container w-full md:h-screen flex flex-col">
             {/* Top Section: Title and Filters */} 
-            <div className='flex flex-col md:flex-row items-center w-full gap-4 p-2 pb-4 md:p-4'>
-                <div className='flex flex-col items-center gap-2'>
+            <div className='flex flex-col md:flex-row md:items-center w-full gap-4 p-2 md:px-4'>
+                {/* Left Column: Inputs */}
+                <div className='flex flex-col w-full md:w-[16rem] flex-shrink-0'>
                     <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
-                    <div className="flex items-center gap-2">
+                    {/* New Location Search Input */}
+                    <div className="flex items-center gap-2 mt-2"> 
+                        <input 
+                            type="text"
+                            value={locationInputValue}
+                            onChange={(e) => setLocationInputValue(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleLocationSearchSubmit(); }} // Handle Enter key press
+                            placeholder="Go to city (eg. London)"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                        />
+                    </div>
+                    {/* Existing Place Search Input */}
+                    <div className="flex items-center gap-2 mt-2">
                         <input 
                             type="text"
                             value={inputValue} // Controlled by inputValue state
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
-                            onKeyDown={handleInputKeyDown} // Handle Enter key press
+                            onKeyDown={handleInputKeyDown} // Handle Enter key press for place search
                             placeholder="Search for places (e.g., 'park') or press Enter"
-                            className="w-[14rem] px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                         />
                         <button 
                             onClick={() => {
@@ -347,8 +408,8 @@ function NearbyPlaces() {
                         </button>
                     </div>
                 </div>
-                {/* Clickable Preset Type Chips */}
-                <div className="flex flex-row flex-wrap justify-center gap-1">
+                {/* Right Column: Clickable Preset Type Chips */}
+                <div className="flex flex-row flex-wrap justify-center gap-1 flex-grow">
                     {placeTypes.map(type => {
                         const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         return (
