@@ -235,7 +235,7 @@ function NearbyPlaces() {
     // Derived state for filtered and sorted places using useMemo for efficiency
     const filteredSortedPlaces = useMemo(() => {
         return places
-            .filter(place => (place.rating || 0) > 3 && (place.userRatingCount || 0) > 10 && place.displayName)
+            .filter(place => (place.rating || 0) >= 3 && (place.userRatingCount || 0) >= 10 && place.displayName)
             .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)))
             .slice(0, 20);
     }, [places]);
