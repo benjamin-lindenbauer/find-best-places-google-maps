@@ -374,19 +374,30 @@ function NearbyPlaces() {
             {/* Top Section: Title and Filters */} 
             <div className='flex flex-col md:flex-row md:items-center w-full gap-4 p-2 md:px-4'>
                 {/* Left Column: Inputs */}
-                <div className='flex flex-col w-full md:w-[16rem] flex-shrink-0'>
+                <div className='flex flex-col w-full md:w-[19rem] flex-shrink-0'>
                     <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
-                    {/* New Location Search Input */}
-                    <div className="flex items-center gap-2 mt-2"> 
+                    {/* New Location Search Form */}
+                    <form 
+                        onSubmit={(e) => { 
+                            e.preventDefault(); // Prevent page reload on submit
+                            handleLocationSearchSubmit(); 
+                        }}
+                        className="flex items-center gap-2 mt-2"
+                    > 
                         <input 
                             type="text"
                             value={locationInputValue}
                             onChange={(e) => setLocationInputValue(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleLocationSearchSubmit(); }} // Handle Enter key press
                             placeholder="Go to city (eg. London)"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                         />
-                    </div>
+                        <button 
+                            type="submit"
+                            className="min-w-20 px-3 py-2 text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        >
+                            Go
+                        </button>
+                    </form>
                     {/* Existing Place Search Input */}
                     <div className="flex items-center gap-2 mt-2">
                         <input 
@@ -403,7 +414,7 @@ function NearbyPlaces() {
                                 setTextQuery('');
                                 setPlaces([]);
                             }}
-                            className="px-3 py-2 text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="min-w-20 px-3 py-2 text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         >
                             Clear
                         </button>
@@ -522,7 +533,7 @@ function NearbyPlaces() {
                         !error && bounds && textQuery.trim() ?
                         <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
                         :
-                        <p className="p-4">Select a place type</p>
+                        <p className="p-4">Select a place type to start</p>
 
                     )}
                 </div>
