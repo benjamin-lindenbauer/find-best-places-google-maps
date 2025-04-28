@@ -25,8 +25,9 @@ interface MapComponentProps {
   initialCenter: google.maps.LatLngLiteral; // e.g. { lat: 37.7749, lng: -122.4194 }
   initialZoom?: number;
   onViewportChange: (bounds: google.maps.LatLngBoundsLiteral | null) => void;
-  places: Place[]; // Add places prop
-  userLocation: google.maps.LatLngLiteral | null; // Add userLocation prop
+  places: Place[];
+  hoveredPlaceId: string | null;
+  userLocation: google.maps.LatLngLiteral | null;
 }
 
 // Specify geometry library (no longer needed for radius)
@@ -38,6 +39,7 @@ function MapComponent({
   initialZoom = 13, 
   onViewportChange, 
   places,
+  hoveredPlaceId,
   userLocation // Destructure userLocation
 }: MapComponentProps) {
   const { isLoaded, loadError } = useJsApiLoader({
@@ -125,7 +127,9 @@ function MapComponent({
           <MarkerF
             key={place.id}
             position={{ lat: place.location.latitude, lng: place.location.longitude }}
-            title={place.displayName.text} 
+            title={place.displayName.text}
+            zIndex={place.id === hoveredPlaceId ? 100 : 1}
+            animation={place.id === hoveredPlaceId && window.google ? window.google.maps.Animation.BOUNCE : undefined}
           />
         ))}
 

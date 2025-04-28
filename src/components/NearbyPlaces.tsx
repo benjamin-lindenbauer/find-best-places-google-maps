@@ -104,6 +104,7 @@ function NearbyPlaces() {
     const [inputValue, setInputValue] = useState<string>(''); // State for the current input field value
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null); // State for user's current location
     const [locationInputValue, setLocationInputValue] = useState<string>(''); // State for the location input field value
+    const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -439,8 +440,9 @@ function NearbyPlaces() {
                             apiKey={apiKey} 
                             initialCenter={mapCenter || viennaCenter} 
                             onViewportChange={handleMapViewportChange} 
-                            places={filteredSortedPlaces} // Pass filtered & sorted places
-                            userLocation={userLocation} // Pass user's location
+                            places={filteredSortedPlaces}
+                            hoveredPlaceId={hoveredPlaceId}
+                            userLocation={userLocation}
                         />
                     ) : (
                          !apiKey ? (
@@ -471,44 +473,48 @@ function NearbyPlaces() {
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                                    onMouseEnter={() => setHoveredPlaceId(place.id)}
+                                    onMouseLeave={() => setHoveredPlaceId(null)}
                                 >
-                                    {/* List Item Content */}
-                                    <h3 className="text-lg font-semibold mb-1 text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
-                                    
-                                    {/* Rating Line */} 
-                                    {(place.rating && place.userRatingCount) && (
-                                        <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
-                                            <span className="mr-1">{place.rating.toFixed(1)}</span>
-                                            <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
-                                            <span>({place.userRatingCount.toLocaleString()})</span>
-                                        </div>
-                                    )}
+                                    <li className="list-none">
+                                        {/* List Item Content */}
+                                        <h3 className="text-lg font-semibold mb-1 text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
+                                        
+                                        {/* Rating Line */} 
+                                        {(place.rating && place.userRatingCount) && (
+                                            <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
+                                                <span className="mr-1">{place.rating.toFixed(1)}</span>
+                                                <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
+                                                <span>({place.userRatingCount.toLocaleString()})</span>
+                                            </div>
+                                        )}
 
-                                    {/* Primary Type */}
-                                    {place.primaryTypeDisplayName && (
-                                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-                                            <span 
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent link navigation
-                                                    e.preventDefault(); // Prevent link navigation (extra safety)
-                                                    const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
-                                                    setInputValue(typeText); // Update input box
-                                                    setTextQuery(typeText); // Set query immediately
-                                                }}
-                                                className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
-                                                title={`Search for ${place.primaryTypeDisplayName.text}`}
-                                            >
-                                                {place.primaryTypeDisplayName.text}
-                                            </span>
-                                        </p>
-                                    )}
+                                        {/* Primary Type */}
+                                        {place.primaryTypeDisplayName && (
+                                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                                <span 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent link navigation
+                                                        e.preventDefault(); // Prevent link navigation (extra safety)
+                                                        const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
+                                                        setInputValue(typeText); // Update input box
+                                                        setTextQuery(typeText); // Set query immediately
+                                                    }}
+                                                    className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
+                                                    title={`Search for ${place.primaryTypeDisplayName.text}`}
+                                                >
+                                                    {place.primaryTypeDisplayName.text}
+                                                </span>
+                                            </p>
+                                        )}
 
-                                    {/* Editorial Summary */}
-                                    {place.editorialSummary && (
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            {place.editorialSummary.text}
-                                        </p>
-                                    )}
+                                        {/* Editorial Summary */}
+                                        {place.editorialSummary && (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                {place.editorialSummary.text}
+                                            </p>
+                                        )}
+                                    </li>
                                 </a>
                             ))}
                         </ul>
