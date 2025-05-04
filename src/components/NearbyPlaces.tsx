@@ -44,49 +44,70 @@ interface PlacesApiResponse {
 
 // Define the types for the dropdown (can remain the same conceptually)
 const placeTypes = [
-    'scenic_spot',
-    'attraction',
-    'museum',
-    'viewpoint',
-    'observation_deck',
-    'lake',
-    'swimming_pool',
-    'beach',
-    'mountain_peak',
-    'mountain_pass',
-    'rock_climbing',
-    'hiking_area',
-    'national_park',
-    'park',
-    'place_of_worship',
-    'church',
-    'point_of_interest',
-    'atm',
-    'parking',
-    'campground',
-    'landmark',
-    'bridge',
-    'gym',
-    'university',
-    'library',
-    'groceries',
-    'supermarket',
-    'bus_stop',
-    'train_station',
-    'subway_station',
-    'lodging',
-    'hotel',
-    'takeaway',
-    'cafe',
-    'bakery',
-    'food',
-    'fast_food',
-    'restaurant',
-    'bar',
-    'gas_station',
-    'pharmacy',
-    'shopping_mall',
-    'notable_street',
+    // Natural features
+    'Point of Interest',
+    'Scenic Spot',
+    'Attraction',
+    'Viewpoint',
+    'Observation Deck',
+    'Lake',
+    'Beach',
+    'Mountain Peak',
+    'Mountain Pass',
+    'Cave',
+    'National Park',
+    'Park',
+    
+    // Outdoor activities
+    'Rock Climbing',
+    'Hiking Area',
+    'Campground',
+    
+    // Religious places
+    'Place of Worship',
+    'Temple',
+    'Church',
+    'Mosque',
+    'Synagogue',
+    
+    // Landmarks
+    'Landmark',
+    'Bridge',
+    'Notable Street',
+    
+    // Cultural/educational
+    'Museum',
+    'University',
+    'Library',
+    
+    // Transportation
+    'Bus Stop',
+    'Train Station',
+    'Subway Station',
+    'Parking',
+    'Gas Station',
+    
+    // Food/dining
+    'Takeaway',
+    'Cafe',
+    'Bakery',
+    'Food',
+    'Fast Food',
+    'Restaurant',
+    'Bar',
+    
+    // Shopping/services
+    'ATM',
+    'Pharmacy',
+    'Groceries',
+    'Supermarket',
+    'Shopping Mall',
+    
+    // Accommodation
+    'Lodging',
+    'Hotel',
+    'Gym',
+    'Swimming Pool',
 ];
 
 // Define coordinates for Vienna as fallback
@@ -105,6 +126,7 @@ function NearbyPlaces() {
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null); // State for user's current location
     const [locationInputValue, setLocationInputValue] = useState<string>(''); // State for the location input field value
     const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
+    const [filtered, setFiltered] = useState<boolean>(true);
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -235,10 +257,10 @@ function NearbyPlaces() {
     // Derived state for filtered and sorted places using useMemo for efficiency
     const filteredSortedPlaces = useMemo(() => {
         return places
-            .filter(place => (place.rating || 0) >= 3 && (place.userRatingCount || 0) >= 10 && place.displayName)
+            .filter(place => filtered ? (place.rating || 0) >= 3 && (place.userRatingCount || 0) >= 10 && place.displayName : true)
             .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)))
             .slice(0, 20);
-    }, [places]);
+    }, [places, filtered]);
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
@@ -374,8 +396,14 @@ function NearbyPlaces() {
             {/* Top Section: Title and Filters */} 
             <div className='flex flex-col md:flex-row md:items-center w-full gap-4 p-2 md:px-4'>
                 {/* Left Column: Inputs */}
-                <div className='flex flex-col w-full md:w-[19rem] flex-shrink-0'>
-                    <h1 className='flex text-2xl font-semibold flex-nowrap'>Find the best places</h1>
+                <div className='flex flex-col w-full md:w-[20rem] flex-shrink-0'>
+                    <div className='flex flex-row items-center justify-between gap-2'>
+                        <h1 className='flex text-xl font-semibold flex-nowrap mr-2'>Find the best places</h1>
+                        <div className='flex flex-row items-center gap-2'>
+                            <input type="checkbox" checked={filtered} onChange={(e) => setFiltered(e.target.checked)} />
+                            <label>Filter</label>
+                        </div>
+                    </div>
                     {/* New Location Search Form */}
                     <form 
                         onSubmit={(e) => { 
@@ -389,11 +417,11 @@ function NearbyPlaces() {
                             value={locationInputValue}
                             onChange={(e) => setLocationInputValue(e.target.value)}
                             placeholder="Go to city (eg. London)"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                         />
                         <button 
                             type="submit"
-                            className="min-w-20 px-3 py-2 text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="min-w-20 h-9 px-3 flex items-center justify-center text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         >
                             Go
                         </button>
@@ -405,8 +433,8 @@ function NearbyPlaces() {
                             value={inputValue} // Controlled by inputValue state
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
                             onKeyDown={handleInputKeyDown} // Handle Enter key press for place search
-                            placeholder="Search for places (e.g., 'park') or press Enter"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            placeholder="Search for places (eg. park)"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                         />
                         <button 
                             onClick={() => {
@@ -414,7 +442,7 @@ function NearbyPlaces() {
                                 setTextQuery('');
                                 setPlaces([]);
                             }}
-                            className="min-w-20 px-3 py-2 text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="min-w-20 h-9 px-3 flex items-center justify-center text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         >
                             Clear
                         </button>
@@ -423,18 +451,17 @@ function NearbyPlaces() {
                 {/* Right Column: Clickable Preset Type Chips */}
                 <div className="flex flex-row flex-wrap justify-center gap-1 flex-grow">
                     {placeTypes.map(type => {
-                        const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        const formattedType = type.toLowerCase().trim();
                         return (
                             <span 
                                 key={type} 
                                 onClick={() => {
-                                    const formatted = formattedType.toLowerCase().trim();
-                                    setInputValue(formatted); // Update input box
-                                    setTextQuery(formatted); // Set query immediately
+                                    setInputValue(formattedType); // Update input box
+                                    setTextQuery(formattedType); // Set query immediately
                                 }}
                                 className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
                             >
-                                {formattedType}
+                                {type}
                             </span>
                         );
                     })}
