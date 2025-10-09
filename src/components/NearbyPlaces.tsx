@@ -127,6 +127,7 @@ function NearbyPlaces() {
     const [locationInputValue, setLocationInputValue] = useState<string>(''); // State for the location input field value
     const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
     const [filtered, setFiltered] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -159,6 +160,7 @@ function NearbyPlaces() {
         }
 
         setError(null);
+        setIsLoading(true);
 
         const apiUrl = 'https://places.googleapis.com/v1/places:searchText';
         
@@ -226,7 +228,7 @@ function NearbyPlaces() {
                 setPlaces(data.places);
             } else {
                 setPlaces([]); // Clear places if no results or empty array
-                // Optional: setError('No places found matching your criteria in this area.');
+                setError('No places found matching your criteria in this area.');
             }
 
         } catch (err: unknown) { // Catch unknown error type
@@ -235,6 +237,8 @@ function NearbyPlaces() {
             const errorMessage = err instanceof Error ? err.message : String(err);
             setError(`An unexpected error occurred: ${errorMessage}`);
             setPlaces([]); // Clear places on error
+        } finally {
+            setIsLoading(false);
         }
     }, [apiKey]); // Add apiKey as a dependency
 
@@ -417,7 +421,7 @@ function NearbyPlaces() {
                             value={locationInputValue}
                             onChange={(e) => setLocationInputValue(e.target.value)}
                             placeholder="Go to city (eg. London)"
-                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
                         <button 
                             type="submit"
@@ -434,7 +438,7 @@ function NearbyPlaces() {
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
                             onKeyDown={handleInputKeyDown} // Handle Enter key press for place search
                             placeholder="Search for places (eg. park)"
-                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
                         <button 
                             onClick={() => {
@@ -552,6 +556,9 @@ function NearbyPlaces() {
                             ))}
                         </ul>
                     ) : (
+                        isLoading ? 
+                        <p className="p-4">Loading places...</p>
+                        :
                         !error && bounds && textQuery.trim() ?
                         <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
                         :
