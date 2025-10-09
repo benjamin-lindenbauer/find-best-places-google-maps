@@ -421,7 +421,7 @@ function NearbyPlaces() {
                             value={locationInputValue}
                             onChange={(e) => setLocationInputValue(e.target.value)}
                             placeholder="Go to city (eg. London)"
-                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-[var(--primary-hover)] focus:border-[var(--primary-hover)]"
                         />
                         <button 
                             type="submit"
@@ -438,7 +438,7 @@ function NearbyPlaces() {
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
                             onKeyDown={handleInputKeyDown} // Handle Enter key press for place search
                             placeholder="Search for places (eg. park)"
-                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-[var(--primary-hover)] focus:border-[var(--primary-hover)]"
                         />
                         <button 
                             onClick={() => {
@@ -473,9 +473,9 @@ function NearbyPlaces() {
             </div>
 
             {/* Main Content Area: Two Columns */}
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden"> {/* flex-grow makes this fill remaining height */}
+            <div className="flex flex-col md:flex-row flex-grow overflow-hidden relative"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
-                <div className="w-full h-[50vh] md:h-full">
+                <div className="w-full h-[50vh] md:h-full relative">
                     {apiKey ? (
                         <MapComponent 
                             apiKey={apiKey} 
@@ -490,6 +490,10 @@ function NearbyPlaces() {
                             Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.
                         </div>
                     )}
+                    {/* Footer */}
+                    <footer className="absolute bottom-0 left-0 p-2 text-xs text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-tr-md">
+                        © 2025 Made by <a href="https://www.benzen.dev/" target="_blank">ben_zen</a>
+                    </footer>
                 </div>
 
                 {/* Right Column: Place List */}
