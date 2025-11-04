@@ -1,7 +1,8 @@
 {
   "name": "find-the-best-places",
+  "description": "Interactive map app to discover highly rated places within the current map view.",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
