@@ -3,6 +3,7 @@ import MapComponent from './MapComponent'; // Import the new MapComponent
 
 // Define the key used in localStorage
 const LOCAL_STORAGE_API_KEY = 'find_best_places.maps_api_key';
+const INVALID_KEY_ERROR_MESSAGE = 'Google Maps API key is invalid or expired. Please enter a new one.';
 
 // Updated interface for Text Search results
 interface Place {
@@ -133,6 +134,7 @@ function NearbyPlaces() {
     const [apiKey, setApiKey] = useState<string | null>(null);
     const [isApiKeySet, setIsApiKeySet] = useState<boolean>(false);
     const [inputApiKey, setInputApiKey] = useState<string>(''); // For the API key input form
+    const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
     // Effect to check localStorage for API key on initial load
     useEffect(() => {
@@ -144,6 +146,29 @@ function NearbyPlaces() {
             setIsApiKeySet(false); // Explicitly set to false if not found
         }
     }, []); // Run only once on mount
+
+    const handleMapLoadError = useCallback((mapError: Error) => {
+        console.error('Google Maps load error:', mapError);
+        setMapLoadError(mapError.message);
+        setPlaces([]);
+
+        if (mapError.message.includes('ExpiredKeyMapError')) {
+            localStorage.removeItem(LOCAL_STORAGE_API_KEY);
+            setApiKey(null);
+            setIsApiKeySet(false);
+            setInputApiKey('');
+            setError(INVALID_KEY_ERROR_MESSAGE);
+        } else {
+            setError(`Error loading Google Maps: ${mapError.message}`);
+        }
+    }, []);
+
+    const handleMapLoadSuccess = useCallback(() => {
+        setMapLoadError(null);
+        if (error === INVALID_KEY_ERROR_MESSAGE || (error && error.startsWith('Error loading Google Maps:'))) {
+            setError(null);
+        }
+    }, [error]);
 
     // --- API Fetching --- 
     // Modified fetchNearbyPlaces for Text Search
@@ -249,7 +274,7 @@ function NearbyPlaces() {
         } else if (!isApiKeySet) {
             // Don't fetch if API key is not set, clear places/error related to fetching
             setPlaces([]);
-            if (error !== 'API key is missing. Please enter it below.') { // Avoid resetting the initial prompt
+            if (error && error !== 'API key is missing. Please enter it below.' && error !== INVALID_KEY_ERROR_MESSAGE) { // Avoid resetting the API key prompts
                  setError(null);
             }
         } else if (!textQuery.trim()) {
@@ -310,6 +335,7 @@ function NearbyPlaces() {
             localStorage.setItem(LOCAL_STORAGE_API_KEY, inputApiKey.trim());
             setApiKey(inputApiKey.trim());
             setIsApiKeySet(true);
+            setMapLoadError(null);
             setError(null); // Clear any previous errors
             setInputApiKey(''); // Clear the input field
         } else {
@@ -476,7 +502,7 @@ function NearbyPlaces() {
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden relative"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
                 <div className="w-full h-[50vh] md:h-full relative">
-                    {apiKey ? (
+                    {apiKey && !mapLoadError ? (
                         <MapComponent 
                             apiKey={apiKey} 
                             initialCenter={mapCenter || viennaCenter} 
@@ -484,10 +510,14 @@ function NearbyPlaces() {
                             places={filteredSortedPlaces}
                             hoveredPlaceId={hoveredPlaceId}
                             userLocation={userLocation}
+                            onLoadError={handleMapLoadError}
+                            onLoadSuccess={handleMapLoadSuccess}
                         />
                     ) : (
                         <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
-                            Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.
+                            {mapLoadError
+                                ? (mapLoadError.includes('ExpiredKeyMapError') ? INVALID_KEY_ERROR_MESSAGE : `Map cannot be displayed: ${mapLoadError}`)
+                                : 'Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.'}
                         </div>
                     )}
                     {/* Footer */}

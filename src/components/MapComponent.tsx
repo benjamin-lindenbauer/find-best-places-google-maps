@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { GoogleMap, useJsApiLoader, LoadScriptProps, MarkerF } from '@react-google-maps/api';
 
 // Define map container style
@@ -28,6 +28,8 @@ interface MapComponentProps {
   places: Place[];
   hoveredPlaceId: string | null;
   userLocation: google.maps.LatLngLiteral | null;
+  onLoadError?: (error: Error) => void;
+  onLoadSuccess?: () => void;
 }
 
 // Specify geometry library (no longer needed for radius)
@@ -40,7 +42,9 @@ function MapComponent({
   onViewportChange, 
   places,
   hoveredPlaceId,
-  userLocation // Destructure userLocation
+  userLocation, // Destructure userLocation
+  onLoadError,
+  onLoadSuccess,
 }: MapComponentProps) {
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
@@ -91,8 +95,56 @@ function MapComponent({
     }
   }, [map, userLocation]);
 
+  useEffect(() => {
+    if (loadError && onLoadError) {
+      onLoadError(loadError);
+    }
+  }, [loadError, onLoadError]);
+
+  useEffect(() => {
+    if (isLoaded && onLoadSuccess) {
+      onLoadSuccess();
+    }
+  }, [isLoaded, onLoadSuccess]);
+
+  useEffect(() => {
+    if (!onLoadError) {
+      return;
+    }
+
+    const globalWindow = window as typeof window & { gm_authFailure?: () => void };
+    const previousHandler = globalWindow.gm_authFailure;
+
+    const handler = () => {
+      const error = new Error('ExpiredKeyMapError');
+      error.name = 'ExpiredKeyMapError';
+      onLoadError(error);
+
+      if (typeof previousHandler === 'function') {
+        try {
+          previousHandler();
+        } catch (err) {
+          console.error('Error in previous gm_authFailure handler', err);
+        }
+      }
+    };
+
+    globalWindow.gm_authFailure = handler;
+
+    return () => {
+      const current = (window as typeof window & { gm_authFailure?: () => void }).gm_authFailure;
+      if (current === handler) {
+        if (previousHandler) {
+          globalWindow.gm_authFailure = previousHandler;
+        } else {
+          delete globalWindow.gm_authFailure;
+        }
+      }
+    };
+  }, [onLoadError]);
+
   if (loadError) {
-    return <div>Error loading maps: {loadError.message}</div>;
+    return null;
   }
 
   if (!isLoaded) {
