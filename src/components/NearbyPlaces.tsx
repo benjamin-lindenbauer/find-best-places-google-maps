@@ -119,10 +119,10 @@ const placeTypes = [
     'Hospital',
 ];
 
-// Define coordinates for Vienna as fallback
-const viennaCenter = {
-  lat: 48.2082,
-  lng: 16.3738
+// Define coordinates for Milan as fallback
+const defaultCenter = {
+  lat: 45.468235,
+  lng: 9.182235
 };
 
 function NearbyPlaces() {
@@ -316,14 +316,14 @@ function NearbyPlaces() {
                 () => {
                     // Handle geolocation error (e.g., user denied permission)
                     console.warn('Geolocation failed or permission denied. Falling back to default.');
-                    setMapCenter(viennaCenter); // Fallback to default
+                    setMapCenter(defaultCenter); // Fallback to default
                     // setUserLocation(null); // Explicitly set userLocation to null if failed
                 }
             );
         } else {
             // Browser doesn't support Geolocation
             console.warn('Geolocation not supported by this browser. Falling back to default.');
-            setMapCenter(viennaCenter); // Fallback to default
+            setMapCenter(defaultCenter); // Fallback to default
         }
     }, []); // Run only once on mount
 
@@ -511,7 +511,7 @@ function NearbyPlaces() {
                         {!mapLoadError ? (
                             <MapComponent 
                                 apiKey={apiKey} 
-                                initialCenter={mapCenter || viennaCenter} 
+                                initialCenter={mapCenter || defaultCenter} 
                                 onViewportChange={handleMapViewportChange} 
                                 places={filteredSortedPlaces}
                                 hoveredPlaceId={hoveredPlaceId}
