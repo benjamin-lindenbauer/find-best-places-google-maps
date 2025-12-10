@@ -127,7 +127,8 @@ function NearbyPlaces() {
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null); // State for user's current location
     const [locationInputValue, setLocationInputValue] = useState<string>(''); // State for the location input field value
     const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
-    const [filtered, setFiltered] = useState<boolean>(true);
+    const [ratingFilter, setRatingFilter] = useState<number>(3.5);
+    const [ratingCountFilter, setRatingCountFilter] = useState<number>(10);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     // State for managing API Key from localStorage
@@ -286,10 +287,10 @@ function NearbyPlaces() {
     // Derived state for filtered and sorted places using useMemo for efficiency
     const filteredSortedPlaces = useMemo(() => {
         return places
-            .filter(place => filtered ? (place.rating || 0) >= 3 && (place.userRatingCount || 0) >= 10 && place.displayName : true)
+            .filter(place => (place.rating || 0) >= ratingFilter && (place.userRatingCount || 0) >= ratingCountFilter && place.displayName)
             .sort((a, b) => ((b.userRatingCount || 0) * (b.rating || 0)) - ((a.userRatingCount || 0) * (a.rating || 0)))
             .slice(0, 20);
-    }, [places, filtered]);
+    }, [places, ratingFilter, ratingCountFilter]);
 
     // Effect to determine initial map center (Geolocation or Fallback)
     useEffect(() => {
@@ -429,10 +430,6 @@ function NearbyPlaces() {
                 <div className='flex flex-col w-full md:w-[20rem] flex-shrink-0'>
                     <div className='flex flex-row items-center justify-between gap-2'>
                         <h1 className='flex text-xl font-semibold flex-nowrap mr-2'>Find the best places</h1>
-                        <div className='flex flex-row items-center gap-2'>
-                            <input type="checkbox" checked={filtered} onChange={(e) => setFiltered(e.target.checked)} />
-                            <label>Filter</label>
-                        </div>
                     </div>
                     {/* New Location Search Form */}
                     <form 
@@ -501,7 +498,7 @@ function NearbyPlaces() {
             {/* Main Content Area: Two Columns */}
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden relative"> {/* flex-grow makes this fill remaining height */}
                 {/* Left Column: Map */}
-                <div className="w-full h-[50vh] md:h-full relative">
+                <div className="w-full h-[50vh] md:h-full flex-grow relative">
                     {apiKey && !mapLoadError ? (
                         <MapComponent 
                             apiKey={apiKey} 
@@ -527,14 +524,57 @@ function NearbyPlaces() {
                 </div>
 
                 {/* Right Column: Place List */}
-                <div className="w-full md:w-[32rem] md:h-full overflow-y-auto"> {/* List column takes 1/3 width, scrolls vertically */} 
-                    {/* Display Loading/Error specific to API fetch */} 
-                    {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
-                    {/* You might want a dedicated loading state for the API call triggered by map changes */} 
-                    {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
+                <div className="w-full md:w-1/4 md:min-w-[28rem] md:h-full flex flex-col"> {/* List column takes 1/4 width, scrolls vertically */}
+                    {/* Filters - Fixed */}
+                    <div className="p-4 pt-0 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex flex-col flex-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Minimum Average Rating: {ratingFilter.toFixed(1)}
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="5"
+                                    step="0.1"
+                                    value={ratingFilter}
+                                    onChange={(e) => setRatingFilter(parseFloat(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span>0.0</span>
+                                    <span>5.0</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col flex-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Min. Number of Ratings: {ratingCountFilter}
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1000"
+                                    step="10"
+                                    value={ratingCountFilter}
+                                    onChange={(e) => setRatingCountFilter(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span>0</span>
+                                    <span>1000</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Scrollable Content */}
+                    <div className="flex-grow overflow-y-auto">
+                        {/* Display Loading/Error specific to API fetch */} 
+                        {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
+                        {/* You might want a dedicated loading state for the API call triggered by map changes */} 
+                        {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
 
-                    {/* Display List - Updated for Text Search fields */} 
-                    {filteredSortedPlaces.length > 0 ? (
+                        {/* Display List - Updated for Text Search fields */} 
+                        {filteredSortedPlaces.length > 0 ? (
                         <ul>
                             {filteredSortedPlaces.map((place) => (
                                 // Wrap list item in a link to Google Maps
@@ -548,8 +588,28 @@ function NearbyPlaces() {
                                     onMouseLeave={() => setHoveredPlaceId(null)}
                                 >
                                     <li className="list-none">
-                                        {/* List Item Content */}
-                                        <h3 className="text-lg font-semibold mb-1 text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
+                                        <div className="flex items-center justify-start gap-2 mb-1">
+                                            {/* List Item Content */}
+                                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
+                                            {/* Primary Type */}
+                                            {place.primaryTypeDisplayName && (
+                                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                    <span 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // Prevent link navigation
+                                                            e.preventDefault(); // Prevent link navigation (extra safety)
+                                                            const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
+                                                            setInputValue(typeText); // Update input box
+                                                            setTextQuery(typeText); // Set query immediately
+                                                        }}
+                                                        className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
+                                                        title={`Search for ${place.primaryTypeDisplayName.text}`}
+                                                    >
+                                                        {place.primaryTypeDisplayName.text}
+                                                    </span>
+                                                </p>
+                                            )}
+                                        </div>
                                         
                                         {/* Rating Line */} 
                                         {(place.rating && place.userRatingCount) && (
@@ -558,25 +618,6 @@ function NearbyPlaces() {
                                                 <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
                                                 <span>({place.userRatingCount.toLocaleString()})</span>
                                             </div>
-                                        )}
-
-                                        {/* Primary Type */}
-                                        {place.primaryTypeDisplayName && (
-                                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-                                                <span 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent link navigation
-                                                        e.preventDefault(); // Prevent link navigation (extra safety)
-                                                        const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
-                                                        setInputValue(typeText); // Update input box
-                                                        setTextQuery(typeText); // Set query immediately
-                                                    }}
-                                                    className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
-                                                    title={`Search for ${place.primaryTypeDisplayName.text}`}
-                                                >
-                                                    {place.primaryTypeDisplayName.text}
-                                                </span>
-                                            </p>
                                         )}
 
                                         {/* Editorial Summary */}
@@ -599,6 +640,7 @@ function NearbyPlaces() {
                         <p className="p-4">Select a place type to start</p>
 
                     )}
+                    </div>
                 </div>
             </div>
         </div>
