@@ -99,7 +99,6 @@ const placeTypes = [
     
     // Shopping/services
     'ATM',
-    'Pharmacy',
     'Groceries',
     'Supermarket',
     'Shopping Mall',
@@ -108,7 +107,16 @@ const placeTypes = [
     'Lodging',
     'Hotel',
     'Gym',
+    'Spa',
     'Swimming Pool',
+    'Massage',
+
+    // Health
+    'Doctor',
+    'Dentist',
+    'Pharmacy',
+    'Clinic',
+    'Hospital',
 ];
 
 // Define coordinates for Vienna as fallback
@@ -130,6 +138,7 @@ function NearbyPlaces() {
     const [ratingFilter, setRatingFilter] = useState<number>(3.5);
     const [ratingCountFilter, setRatingCountFilter] = useState<number>(10);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [showSettings, setShowSettings] = useState<boolean>(false);
 
     // State for managing API Key from localStorage
     const [apiKey, setApiKey] = useState<string | null>(null);
@@ -339,8 +348,29 @@ function NearbyPlaces() {
             setMapLoadError(null);
             setError(null); // Clear any previous errors
             setInputApiKey(''); // Clear the input field
+            setShowSettings(false); // Close settings modal
         } else {
             setError("API Key cannot be empty.");
+        }
+    };
+
+    // Handler to remove the API key
+    const handleRemoveApiKey = () => {
+        localStorage.removeItem(LOCAL_STORAGE_API_KEY);
+        setApiKey(null);
+        setIsApiKeySet(false);
+        setInputApiKey('');
+        setMapLoadError(null);
+        setError(null);
+        setShowSettings(false);
+    };
+
+    // Handler to close settings modal when clicking outside
+    const handleSettingsBackdropClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setShowSettings(false);
+            setInputApiKey('');
+            setError(null);
         }
     };
 
@@ -393,34 +423,6 @@ function NearbyPlaces() {
         }
     };
 
-    // Render API Key input form if key is not set
-    if (!isApiKeySet) {
-        return (
-            <div style={{ padding: '20px', maxWidth: '400px', margin: 'auto', textAlign: 'center' }}>
-                <h2>Enter Google Maps API Key</h2>
-                <p>A Google Maps API key with Places API enabled is required to use this application.</p>
-                <input 
-                    type="password" 
-                    value={inputApiKey}
-                    onChange={(e) => setInputApiKey(e.target.value)}
-                    placeholder="Paste your API Key here"
-                    style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }}
-                />
-                <button 
-                    onClick={handleSaveApiKey}
-                    style={{ padding: '10px 20px', cursor: 'pointer' }}
-                >
-                    Save and Load Map
-                </button>
-                {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
-                 <p style={{marginTop: '20px', fontSize: '0.9em', color: '#666'}}>
-                    Your API key will be stored locally in your browser's localStorage.<br/>
-                    <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener noreferrer">How to get an API Key</a>
-                </p>
-            </div>
-        );
-    }
-
     // Render map and places list if API key IS set
     return (
         <div className="nearby-places-container w-full md:h-screen flex flex-col">
@@ -430,6 +432,12 @@ function NearbyPlaces() {
                 <div className='flex flex-col w-full md:w-[20rem] flex-shrink-0'>
                     <div className='flex flex-row items-center justify-between gap-2'>
                         <h1 className='flex text-xl font-semibold flex-nowrap mr-2'>Find the best places</h1>
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="min-w-20 h-9 px-3 flex items-center justify-center text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        >
+                            Settings
+                        </button>
                     </div>
                     {/* New Location Search Form */}
                     <form 
@@ -496,153 +504,242 @@ function NearbyPlaces() {
             </div>
 
             {/* Main Content Area: Two Columns */}
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden relative"> {/* flex-grow makes this fill remaining height */}
-                {/* Left Column: Map */}
-                <div className="w-full h-[50vh] md:h-full flex-grow relative">
-                    {apiKey && !mapLoadError ? (
-                        <MapComponent 
-                            apiKey={apiKey} 
-                            initialCenter={mapCenter || viennaCenter} 
-                            onViewportChange={handleMapViewportChange} 
-                            places={filteredSortedPlaces}
-                            hoveredPlaceId={hoveredPlaceId}
-                            userLocation={userLocation}
-                            onLoadError={handleMapLoadError}
-                            onLoadSuccess={handleMapLoadSuccess}
-                        />
-                    ) : (
-                        <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
-                            {mapLoadError
-                                ? (mapLoadError.includes('ExpiredKeyMapError') ? INVALID_KEY_ERROR_MESSAGE : `Map cannot be displayed: ${mapLoadError}`)
-                                : 'Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.'}
-                        </div>
-                    )}
-                    {/* Footer */}
-                    <footer className="absolute bottom-0 left-0 p-2 text-xs text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-tr-md">
-                        © 2025 Made by <a href="https://www.benzen.dev/" target="_blank">ben_zen</a>
-                    </footer>
-                </div>
-
-                {/* Right Column: Place List */}
-                <div className="w-full md:w-1/4 md:min-w-[28rem] md:h-full flex flex-col"> {/* List column takes 1/4 width, scrolls vertically */}
-                    {/* Filters - Fixed */}
-                    <div className="p-4 pt-0 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
-                        <div className="flex flex-col md:flex-row gap-4">
-                            <div className="flex flex-col flex-1">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Minimum Average Rating: {ratingFilter.toFixed(1)}
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="5"
-                                    step="0.1"
-                                    value={ratingFilter}
-                                    onChange={(e) => setRatingFilter(parseFloat(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                />
-                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    <span>0.0</span>
-                                    <span>5.0</span>
-                                </div>
+            {apiKey ? (
+                <div className="flex flex-col md:flex-row flex-grow overflow-hidden relative"> {/* flex-grow makes this fill remaining height */}
+                    {/* Left Column: Map */}
+                    <div className="w-full h-[50vh] md:h-full flex-grow relative">
+                        {!mapLoadError ? (
+                            <MapComponent 
+                                apiKey={apiKey} 
+                                initialCenter={mapCenter || viennaCenter} 
+                                onViewportChange={handleMapViewportChange} 
+                                places={filteredSortedPlaces}
+                                hoveredPlaceId={hoveredPlaceId}
+                                userLocation={userLocation}
+                                onLoadError={handleMapLoadError}
+                                onLoadSuccess={handleMapLoadSuccess}
+                            />
+                        ) : (
+                            <div className="text-red-500 dark:text-red-400 p-4 border border-red-500 dark:border-red-400 rounded-md mb-4 flex items-center justify-center h-full">
+                                {mapLoadError
+                                    ? (mapLoadError.includes('ExpiredKeyMapError') ? INVALID_KEY_ERROR_MESSAGE : `Map cannot be displayed: ${mapLoadError}`)
+                                    : 'Map cannot be displayed: Google Maps API Key is missing. Please set it in the input form below.'}
                             </div>
-                            <div className="flex flex-col flex-1">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Min. Number of Ratings: {ratingCountFilter}
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1000"
-                                    step="10"
-                                    value={ratingCountFilter}
-                                    onChange={(e) => setRatingCountFilter(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                />
-                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    <span>0</span>
-                                    <span>1000</span>
-                                </div>
-                            </div>
-                        </div>
+                        )}
+                        {/* Footer */}
+                        <footer className="absolute bottom-0 left-0 p-2 text-xs text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-tr-md">
+                            © 2025 Made by <a href="https://www.benzen.dev/" target="_blank">ben_zen</a>
+                        </footer>
                     </div>
-                    {/* Scrollable Content */}
-                    <div className="flex-grow overflow-y-auto">
-                        {/* Display Loading/Error specific to API fetch */} 
-                        {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
-                        {/* You might want a dedicated loading state for the API call triggered by map changes */} 
-                        {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
 
-                        {/* Display List - Updated for Text Search fields */} 
-                        {filteredSortedPlaces.length > 0 ? (
-                        <ul>
-                            {filteredSortedPlaces.map((place) => (
-                                // Wrap list item in a link to Google Maps
-                                <a 
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || '')}&query_place_id=${place.id}`}
-                                    key={place.id} // Use place.id as key for the link
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
-                                    onMouseEnter={() => setHoveredPlaceId(place.id)}
-                                    onMouseLeave={() => setHoveredPlaceId(null)}
-                                >
-                                    <li className="list-none">
-                                        <div className="flex items-center justify-start gap-2 mb-1">
-                                            {/* List Item Content */}
-                                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{place.displayName?.text || 'N/A'}</h3>
-                                            {/* Primary Type */}
-                                            {place.primaryTypeDisplayName && (
-                                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                    <span 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation(); // Prevent link navigation
-                                                            e.preventDefault(); // Prevent link navigation (extra safety)
-                                                            const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
-                                                            setInputValue(typeText); // Update input box
-                                                            setTextQuery(typeText); // Set query immediately
-                                                        }}
-                                                        className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150"
-                                                        title={`Search for ${place.primaryTypeDisplayName.text}`}
-                                                    >
-                                                        {place.primaryTypeDisplayName.text}
-                                                    </span>
+                    {/* Right Column: Place List */}
+                    <div className="w-full md:w-1/4 md:min-w-[28rem] md:h-full flex flex-col"> {/* List column takes 1/4 width, scrolls vertically */}
+                        {/* Filters - Fixed */}
+                        <div className="p-4 pt-0 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex flex-col flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Minimum Average Rating: {ratingFilter.toFixed(1)}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="5"
+                                        step="0.1"
+                                        value={ratingFilter}
+                                        onChange={(e) => setRatingFilter(parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                    />
+                                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <span>0.0</span>
+                                        <span>5.0</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Min. Number of Ratings: {ratingCountFilter}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1000"
+                                        step="10"
+                                        value={ratingCountFilter}
+                                        onChange={(e) => setRatingCountFilter(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                    />
+                                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <span>0</span>
+                                        <span>1000</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Scrollable Content */}
+                        <div className="flex-grow overflow-y-auto">
+                            {/* Display Loading/Error specific to API fetch */} 
+                            {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
+                            {/* You might want a dedicated loading state for the API call triggered by map changes */} 
+                            {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
+
+                            {/* Display List - Updated for Text Search fields */} 
+                            {filteredSortedPlaces.length > 0 ? (
+                            <ul>
+                                {filteredSortedPlaces.map((place) => (
+                                    // Wrap list item in a link to Google Maps
+                                    <a 
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || '')}&query_place_id=${place.id}`}
+                                        key={place.id} // Use place.id as key for the link
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                                        onMouseEnter={() => setHoveredPlaceId(place.id)}
+                                        onMouseLeave={() => setHoveredPlaceId(null)}
+                                    >
+                                        <li className="list-none">
+                                            <div className="flex items-center justify-start gap-2 mb-1">
+                                                {/* List Item Content */}
+                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">{place.displayName?.text || 'N/A'}</h3>
+                                                {/* Primary Type */}
+                                                {place.primaryTypeDisplayName && (
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                        <span 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation(); // Prevent link navigation
+                                                                e.preventDefault(); // Prevent link navigation (extra safety)
+                                                                const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
+                                                                setInputValue(typeText); // Update input box
+                                                                setTextQuery(typeText); // Set query immediately
+                                                            }}
+                                                            className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150 whitespace-nowrap"
+                                                            title={`Search for ${place.primaryTypeDisplayName.text}`}
+                                                        >
+                                                            {place.primaryTypeDisplayName.text}
+                                                        </span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Rating Line */} 
+                                            {(place.rating && place.userRatingCount) && (
+                                                <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
+                                                    <span className="mr-1">{place.rating.toFixed(1)}</span>
+                                                    <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
+                                                    <span>({place.userRatingCount.toLocaleString()})</span>
+                                                </div>
+                                            )}
+
+                                            {/* Editorial Summary */}
+                                            {place.editorialSummary && (
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {place.editorialSummary.text}
                                                 </p>
                                             )}
-                                        </div>
-                                        
-                                        {/* Rating Line */} 
-                                        {(place.rating && place.userRatingCount) && (
-                                            <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
-                                                <span className="mr-1">{place.rating.toFixed(1)}</span>
-                                                <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
-                                                <span>({place.userRatingCount.toLocaleString()})</span>
-                                            </div>
-                                        )}
+                                        </li>
+                                    </a>
+                                ))}
+                            </ul>
+                        ) : (
+                            isLoading ? 
+                            <p className="p-4">Loading places...</p>
+                            :
+                            !error && bounds && textQuery.trim() ?
+                            <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
+                            :
+                            <p className="p-4">Select a place type to start</p>
 
-                                        {/* Editorial Summary */}
-                                        {place.editorialSummary && (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                {place.editorialSummary.text}
-                                            </p>
-                                        )}
-                                    </li>
-                                </a>
-                            ))}
-                        </ul>
-                    ) : (
-                        isLoading ? 
-                        <p className="p-4">Loading places...</p>
-                        :
-                        !error && bounds && textQuery.trim() ?
-                        <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
-                        :
-                        <p className="p-4">Select a place type to start</p>
-
-                    )}
+                        )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="flex w-full justify-center p-8">
+                    <div className="text-xl font-normal text-gray-900 dark:text-white mt-8">
+                        Enter Google Maps API Key in the settings to use this application.
+                    </div>
+                </div>
+            )}
+            
+            {/* Settings Modal */}
+            {showSettings && (
+                <div 
+                    className="fixed inset-0 bg-black/25 bg-opacity-50 flex items-center justify-center z-50"
+                    onClick={handleSettingsBackdropClick}
+                >
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Settings</h2>
+                        
+                        <div className="mb-6">
+                            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Google Maps API Key</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                Update or remove your API key. A key with Places API enabled is required.
+                            </p>
+                            
+                            <div className="space-y-4">
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            API Key
+                                        </label>
+                                        <input 
+                                            type="password" 
+                                            value={inputApiKey}
+                                            onChange={(e) => setInputApiKey(e.target.value)}
+                                            placeholder="Enter new API key"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleRemoveApiKey}
+                                        className="mt-7 p-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                                        title="Remove API Key"
+                                        disabled={!apiKey}
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                {error && (
+                                    <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-900 dark:border-red-600 dark:text-red-300">
+                                        {error}
+                                    </div>
+                                )}
+                                
+                                <div className="flex gap-3">
+                                    <button 
+                                        onClick={() => {
+                                            setShowSettings(false);
+                                            setInputApiKey('');
+                                            setError(null);
+                                        }}
+                                        className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveApiKey}
+                                        disabled={!inputApiKey}
+                                        className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
+                                    >
+                                        Save Key
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Your API key is stored locally in your browser's localStorage.<br/>
+                                <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    How to get an API Key
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

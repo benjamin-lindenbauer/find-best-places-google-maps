@@ -7,10 +7,13 @@ Interactive map app to discover highly rated places within the current map view.
 - **Map-based search**: Results are restricted to the visible map bounds.
 - **Text queries and presets**: Type any query (e.g., `park`, `cafe`) or click preset chips in the header.
 - **Go to city**: Jump the map center to a city by name (geocoding).
-- **Quality filter**: Optional filter keeps only places with rating ≥ 3 and ≥ 10 reviews, sorted by rating × count.
+- **Advanced filtering**: Dual range sliders for minimum average rating (0.0-5.0) and minimum number of ratings (0-1000), with real-time updates.
+- **Smart ranking**: Places are sorted by rating × review count to prioritize popular, highly-rated locations.
+- **Responsive layout**: Fixed filter panel with scrollable results list; right column takes 1/4 width with 28rem minimum on desktop.
 - **Rich list + markers**: Hover a list item to highlight its marker; click an item to open it in Google Maps.
+- **Enhanced UI**: Primary type tags inline with place names, thin scrollbars, dark mode support.
 - **Your location**: If permitted, shows a blue dot and a button to re-center.
-- **Local storage API key**: Paste your Google Maps API key once; it’s saved in `localStorage` under `find_best_places.maps_api_key`.
+- **Local storage API key**: Paste your Google Maps API key once; it's saved in `localStorage` under `find_best_places.maps_api_key`.
 
 ## Tech Stack
 
@@ -48,10 +51,10 @@ Open the printed local URL in your browser. On first load, you will be prompted 
 ## Usage
 
 - **Search places**: Type a query (e.g., "museum") and press Enter.
-- **Use presets**: Click any chip (e.g., "Park", "Cafe").
+- **Use presets**: Click any chip (e.g., "Park", "Cafe") in the header.
 - **Go to city**: Enter a city name (e.g., "London") in the top input and press Go.
-- **Filter toggle**: Use the Filter checkbox to restrict and sort results by rating and review count.
-- **Interact**: Hover an item to bounce its marker; click an item to open it in Google Maps.
+- **Filter results**: Use the range sliders in the right panel to set minimum average rating (0.0-5.0) and minimum number of ratings (0-1000).
+- **Interact**: Hover an item to bounce its marker; click an item to open it in Google Maps; click type tags to search for that specific category.
 
 ## Project Structure
 
@@ -75,17 +78,21 @@ Open the printed local URL in your browser. On first load, you will be prompted 
   - Endpoint: `https://places.googleapis.com/v1/places:searchText`
   - Method: POST with `textQuery` and `locationRestriction.rectangle` derived from map bounds
   - Headers include `X-Goog-Api-Key` and a FieldMask for the fields used in the UI
-- Results are filtered/sorted (optional) and displayed alongside map markers. Clicking list items opens Google Maps.
+- Results are processed through a real-time filtering system:
+  - Dual range sliders control minimum average rating (default 3.5) and minimum number of ratings (default 10)
+  - Places are sorted by rating × review count to prioritize popular, highly-rated locations
+  - Top 20 results are displayed with inline type tags for quick category searches
+- Clicking list items opens Google Maps; clicking type tags triggers new searches for that category.
 
 ## Troubleshooting
 
 - **Map not loading**: Check the browser console for Google Maps API errors. Verify your API key and enabled APIs.
 - **Invalid API key**: You’ll see a clear error. Reset the localStorage key and paste a valid key.
 - **No results**: Zoom out, pan to a different area, or change the query. Some queries may have few results within the visible bounds.
-- **Geolocation denied**: The app falls back to Vienna (48.2082, 16.3738). You can still search and use "Go to city".
-- **CORS or quota errors**: Verify that Places API v1 is enabled and quotas are sufficient.
 
 ## Notes
 
-- API key is stored locally in the browser only; there’s no backend.
-- Tailwind is used via utility classes; no extra config needed beyond the existing Vite plugin setup.
+- API key is stored locally in the browser only; there's no backend.
+- Tailwind is used via utility classes; custom thin scrollbar styling is applied globally in `src/index.css`.
+- The layout uses responsive design with a fixed filter panel and scrollable results for optimal desktop experience.
+- Dark mode is supported throughout the application with appropriate color schemes.
