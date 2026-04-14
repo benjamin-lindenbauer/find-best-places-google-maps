@@ -35,11 +35,11 @@ interface MapComponentProps {
 // Specify geometry library (no longer needed for radius)
 const libraries: LoadScriptProps['libraries'] = [];
 
-function MapComponent({ 
-  apiKey, 
-  initialCenter, 
-  initialZoom = 13, 
-  onViewportChange, 
+function MapComponent({
+  apiKey,
+  initialCenter,
+  initialZoom = 13,
+  onViewportChange,
   places,
   hoveredPlaceId,
   userLocation, // Destructure userLocation
@@ -170,7 +170,7 @@ function MapComponent({
         onLoad={onLoad}
         onUnmount={onUnmount}
         onIdle={onIdle} // Trigger updates when map movement stops
-        options={{ 
+        options={{
           // gestureHandling: 'greedy' 
         }}
       >
@@ -196,32 +196,32 @@ function MapComponent({
         )}
       </GoogleMap>
 
-      {/* Button to center on user location */} 
+      {/* Button to center on user location */}
       {userLocation && (
-          <button
-              onClick={handleCenterOnUser}
-              title="Center on my location"
-              style={{
-                  position: 'absolute',
-                  top: '60px',
-                  right: '10px',
-                  zIndex: 10, // Ensure button is above map tiles
-                  backgroundColor: 'white',
-                  border: '2px solid rgba(0,0,0,0.2)',
-                  borderRadius: '50%', // Make it circular
-                  padding: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-              }}
-          >
-              {/* Simple SVG My Location Icon */} 
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 8C9.79 8 8 9.79 8 12C8 14.21 9.79 16 12 16C14.21 16 16 14.21 16 12C16 9.79 14.21 8 12 8ZM20.94 11C20.48 6.83 17.17 3.52 13 3.06V1H11V3.06C6.83 3.52 3.52 6.83 3.06 11H1V13H3.06C3.52 17.17 6.83 20.48 11 20.94V23H13V20.94C17.17 20.48 20.48 17.17 20.94 13H23V11H20.94ZM12 19C8.13 19 5 15.87 5 12C5 8.13 8.13 5 12 5C15.87 5 19 8.13 19 12C19 15.87 15.87 19 12 19Z" fill="#555"/>
-              </svg>
-          </button>
+        <button
+          onClick={handleCenterOnUser}
+          title="Center on my location"
+          style={{
+            position: 'absolute',
+            top: '60px',
+            right: '10px',
+            zIndex: 10, // Ensure button is above map tiles
+            backgroundColor: 'white',
+            border: '2px solid rgba(0,0,0,0.2)',
+            borderRadius: '50%', // Make it circular
+            padding: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Simple SVG My Location Icon */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 8C9.79 8 8 9.79 8 12C8 14.21 9.79 16 12 16C14.21 16 16 14.21 16 12C16 9.79 14.21 8 12 8ZM20.94 11C20.48 6.83 17.17 3.52 13 3.06V1H11V3.06C6.83 3.52 3.52 6.83 3.06 11H1V13H3.06C3.52 17.17 6.83 20.48 11 20.94V23H13V20.94C17.17 20.48 20.48 17.17 20.94 13H23V11H20.94ZM12 19C8.13 19 5 15.87 5 12C5 8.13 8.13 5 12 5C15.87 5 19 8.13 19 12C19 15.87 15.87 19 12 19Z" fill="#555" />
+          </svg>
+        </button>
       )}
     </div>
   );

@@ -58,36 +58,37 @@ const placeTypes = [
     'Cave',
     'National Park',
     'Park',
-    
+
     // Outdoor activities
     'Rock Climbing',
     'Hiking Area',
     'Campground',
-    
+    'Sports Complex',
+
     // Religious places
     'Place of Worship',
     'Temple',
     'Church',
     'Mosque',
     'Synagogue',
-    
+
     // Landmarks
     'Landmark',
     'Bridge',
     'Notable Street',
-    
+
     // Cultural/educational
     'Museum',
     'University',
     'Library',
-    
+
     // Transportation
     'Bus Stop',
     'Train Station',
     'Subway Station',
     'Parking',
     'Gas Station',
-    
+
     // Food/dining
     'Takeaway',
     'Cafe',
@@ -96,13 +97,13 @@ const placeTypes = [
     'Fast Food',
     'Restaurant',
     'Bar',
-    
+
     // Shopping/services
     'ATM',
     'Groceries',
     'Supermarket',
     'Shopping Mall',
-    
+
     // Accommodation
     'Lodging',
     'Hotel',
@@ -121,8 +122,8 @@ const placeTypes = [
 
 // Define coordinates for Milan as fallback
 const defaultCenter = {
-  lat: 45.468235,
-  lng: 9.182235
+    lat: 45.468235,
+    lng: 9.182235
 };
 
 function NearbyPlaces() {
@@ -198,7 +199,7 @@ function NearbyPlaces() {
         setIsLoading(true);
 
         const apiUrl = 'https://places.googleapis.com/v1/places:searchText';
-        
+
         // Use the textQuery state directly
         if (!currentTextQuery.trim()) {
             // Should not happen if useEffect check is working, but safety check
@@ -222,7 +223,7 @@ function NearbyPlaces() {
                 }
             }
         };
-        
+
         // Define headers using the apiKey from state
         const headers = {
             'Content-Type': 'application/json',
@@ -245,10 +246,6 @@ function NearbyPlaces() {
                 // Check for specific API key related errors
                 if (response.status === 403 || (errorData?.error?.message && errorData.error.message.includes('API key'))) {
                     setError('Invalid API Key provided. Please check and re-enter.');
-                    // Optionally clear the invalid key and force re-entry
-                    // localStorage.removeItem(LOCAL_STORAGE_API_KEY);
-                    // setApiKey(null);
-                    // setIsApiKeySet(false);
                 } else {
                     setError(`API Error: ${response.status} - ${errorData?.error?.message || 'Failed to fetch'}`);
                 }
@@ -263,7 +260,6 @@ function NearbyPlaces() {
                 setPlaces(data.places);
             } else {
                 setPlaces([]); // Clear places if no results or empty array
-                setError('No places found matching your criteria in this area.');
             }
 
         } catch (err: unknown) { // Catch unknown error type
@@ -279,19 +275,21 @@ function NearbyPlaces() {
 
     // Effect to fetch places when bounds or textQuery change (and API key is set)
     useEffect(() => {
-        if (isApiKeySet && apiKey && bounds && textQuery.trim()) { // Only fetch if API key is set, bounds exist and query is not empty
-            fetchNearbyPlaces(bounds, textQuery);
-        } else if (!isApiKeySet) {
-            // Don't fetch if API key is not set, clear places/error related to fetching
-            setPlaces([]);
-            if (error && error !== 'API key is missing. Please enter it below.' && error !== INVALID_KEY_ERROR_MESSAGE) { // Avoid resetting the API key prompts
-                 setError(null);
+        const debounceTimer = setTimeout(() => {
+            if (isApiKeySet && apiKey && bounds && textQuery.trim()) {
+                fetchNearbyPlaces(bounds, textQuery);
+            } else if (!isApiKeySet) {
+                setPlaces([]);
+                if (error && error !== 'API key is missing. Please enter it below.' && error !== INVALID_KEY_ERROR_MESSAGE) {
+                    setError(null);
+                }
+            } else if (!textQuery.trim()) {
+                setPlaces([]);
             }
-        } else if (!textQuery.trim()) {
-            setPlaces([]); // Clear places if query is empty
-        }
-        // This effect runs when bounds, textQuery, isApiKeySet, or fetchNearbyPlaces changes
-    }, [bounds, textQuery, isApiKeySet, apiKey, fetchNearbyPlaces, error]); // Include apiKey, isApiKeySet, and error
+        }, 300); // Debounce to prevent rapid fire during zoom/pan
+
+        return () => clearTimeout(debounceTimer);
+    }, [bounds, textQuery, isApiKeySet, apiKey, fetchNearbyPlaces]);
 
     // Derived state for filtered and sorted places using useMemo for efficiency
     const filteredSortedPlaces = useMemo(() => {
@@ -381,7 +379,7 @@ function NearbyPlaces() {
         }
 
         const locationQuery = locationInputValue.trim();
-        setError(null); 
+        setError(null);
 
         // Check if API key exists before making the call
         if (!apiKey) {
@@ -402,7 +400,7 @@ function NearbyPlaces() {
                 throw new Error(errorData.error_message || `API request failed with status ${response.status}`);
             }
 
-            const data = await response.json(); 
+            const data = await response.json();
 
             if (data.results && data.results.length > 0 && data.results[0].geometry && data.results[0].geometry.location) {
                 const { lat, lng } = data.results[0].geometry.location;
@@ -426,7 +424,7 @@ function NearbyPlaces() {
     // Render map and places list if API key IS set
     return (
         <div className="nearby-places-container w-full md:h-screen flex flex-col">
-            {/* Top Section: Title and Filters */} 
+            {/* Top Section: Title and Filters */}
             <div className='flex flex-col md:flex-row md:items-center w-full gap-4 p-2 md:px-4'>
                 {/* Left Column: Inputs */}
                 <div className='flex flex-col w-full md:w-[20rem] flex-shrink-0'>
@@ -440,21 +438,21 @@ function NearbyPlaces() {
                         </button>
                     </div>
                     {/* New Location Search Form */}
-                    <form 
-                        onSubmit={(e) => { 
+                    <form
+                        onSubmit={(e) => {
                             e.preventDefault(); // Prevent page reload on submit
-                            handleLocationSearchSubmit(); 
+                            handleLocationSearchSubmit();
                         }}
                         className="flex items-center gap-2 mt-2"
-                    > 
-                        <input 
+                    >
+                        <input
                             type="text"
                             value={locationInputValue}
                             onChange={(e) => setLocationInputValue(e.target.value)}
                             placeholder="Go to city (eg. London)"
                             className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-[var(--primary-hover)] focus:border-[var(--primary-hover)]"
                         />
-                        <button 
+                        <button
                             type="submit"
                             className="min-w-20 h-9 px-3 flex items-center justify-center text-gray-500 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                         >
@@ -463,7 +461,7 @@ function NearbyPlaces() {
                     </form>
                     {/* Existing Place Search Input */}
                     <div className="flex items-center gap-2 mt-2">
-                        <input 
+                        <input
                             type="text"
                             value={inputValue} // Controlled by inputValue state
                             onChange={(e) => setInputValue(e.target.value)} // Update inputValue on change
@@ -471,7 +469,7 @@ function NearbyPlaces() {
                             placeholder="Search for places (eg. park)"
                             className="w-full px-3 h-9 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-[var(--primary-hover)] focus:border-[var(--primary-hover)]"
                         />
-                        <button 
+                        <button
                             onClick={() => {
                                 setInputValue('');
                                 setTextQuery('');
@@ -488,8 +486,8 @@ function NearbyPlaces() {
                     {placeTypes.map(type => {
                         const formattedType = type.toLowerCase().trim();
                         return (
-                            <span 
-                                key={type} 
+                            <span
+                                key={type}
                                 onClick={() => {
                                     setInputValue(formattedType); // Update input box
                                     setTextQuery(formattedType); // Set query immediately
@@ -509,10 +507,10 @@ function NearbyPlaces() {
                     {/* Left Column: Map */}
                     <div className="w-full h-[50vh] md:h-full flex-grow relative">
                         {!mapLoadError ? (
-                            <MapComponent 
-                                apiKey={apiKey} 
-                                initialCenter={mapCenter || defaultCenter} 
-                                onViewportChange={handleMapViewportChange} 
+                            <MapComponent
+                                apiKey={apiKey}
+                                initialCenter={mapCenter || defaultCenter}
+                                onViewportChange={handleMapViewportChange}
                                 places={filteredSortedPlaces}
                                 hoveredPlaceId={hoveredPlaceId}
                                 userLocation={userLocation}
@@ -577,78 +575,78 @@ function NearbyPlaces() {
                         </div>
                         {/* Scrollable Content */}
                         <div className="flex-grow overflow-y-auto">
-                            {/* Display Loading/Error specific to API fetch */} 
-                            {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error fetching places: {error}</div>}
-                            {/* You might want a dedicated loading state for the API call triggered by map changes */} 
-                            {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */} 
+                            {/* Display Loading/Error specific to API fetch */}
+                            {error && <div style={{ color: 'red', margin: '1rem' }}>{error}</div>}
+                            {/* You might want a dedicated loading state for the API call triggered by map changes */}
+                            {/* {isFetchingPlaces && <div>Loading places for map area...</div>} */}
 
-                            {/* Display List - Updated for Text Search fields */} 
+                            {/* Display List - Updated for Text Search fields */}
                             {filteredSortedPlaces.length > 0 ? (
-                            <ul>
-                                {filteredSortedPlaces.map((place) => (
-                                    // Wrap list item in a link to Google Maps
-                                    <a 
-                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || '')}&query_place_id=${place.id}`}
-                                        key={place.id} // Use place.id as key for the link
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
-                                        onMouseEnter={() => setHoveredPlaceId(place.id)}
-                                        onMouseLeave={() => setHoveredPlaceId(null)}
-                                    >
-                                        <li className="list-none">
-                                            <div className="flex items-center justify-start gap-2 mb-1">
-                                                {/* List Item Content */}
-                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">{place.displayName?.text || 'N/A'}</h3>
-                                                {/* Primary Type */}
-                                                {place.primaryTypeDisplayName && (
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                        <span 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation(); // Prevent link navigation
-                                                                e.preventDefault(); // Prevent link navigation (extra safety)
-                                                                const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
-                                                                setInputValue(typeText); // Update input box
-                                                                setTextQuery(typeText); // Set query immediately
-                                                            }}
-                                                            className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150 whitespace-nowrap"
-                                                            title={`Search for ${place.primaryTypeDisplayName.text}`}
-                                                        >
-                                                            {place.primaryTypeDisplayName.text}
-                                                        </span>
+                                <ul>
+                                    {filteredSortedPlaces.map((place) => (
+                                        // Wrap list item in a link to Google Maps
+                                        <a
+                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || '')}&query_place_id=${place.id}`}
+                                            key={place.id} // Use place.id as key for the link
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                                            onMouseEnter={() => setHoveredPlaceId(place.id)}
+                                            onMouseLeave={() => setHoveredPlaceId(null)}
+                                        >
+                                            <li className="list-none">
+                                                <div className="flex items-center justify-start gap-2 mb-1">
+                                                    {/* List Item Content */}
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">{place.displayName?.text || 'N/A'}</h3>
+                                                    {/* Primary Type */}
+                                                    {place.primaryTypeDisplayName && (
+                                                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                            <span
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Prevent link navigation
+                                                                    e.preventDefault(); // Prevent link navigation (extra safety)
+                                                                    const typeText = place.primaryTypeDisplayName?.text.toLowerCase().trim() || '';
+                                                                    setInputValue(typeText); // Update input box
+                                                                    setTextQuery(typeText); // Set query immediately
+                                                                }}
+                                                                className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-150 whitespace-nowrap"
+                                                                title={`Search for ${place.primaryTypeDisplayName.text}`}
+                                                            >
+                                                                {place.primaryTypeDisplayName.text}
+                                                            </span>
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Rating Line */}
+                                                {(place.rating && place.userRatingCount) && (
+                                                    <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
+                                                        <span className="mr-1">{place.rating.toFixed(1)}</span>
+                                                        <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
+                                                        <span>({place.userRatingCount.toLocaleString()})</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Editorial Summary */}
+                                                {place.editorialSummary && (
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {place.editorialSummary.text}
                                                     </p>
                                                 )}
-                                            </div>
-                                            
-                                            {/* Rating Line */} 
-                                            {(place.rating && place.userRatingCount) && (
-                                                <div className="flex items-center mb-1 text-sm text-gray-600 dark:text-gray-400">
-                                                    <span className="mr-1">{place.rating.toFixed(1)}</span>
-                                                    <span className="text-yellow-500 mr-1">{'⭐'.repeat(Math.round(place.rating))}{'☆'.repeat(5 - Math.round(place.rating))}</span>
-                                                    <span>({place.userRatingCount.toLocaleString()})</span>
-                                                </div>
-                                            )}
+                                            </li>
+                                        </a>
+                                    ))}
+                                </ul>
+                            ) : (
+                                isLoading ?
+                                    <p className="p-4">Loading places...</p>
+                                    :
+                                    !error && bounds && textQuery.trim() ?
+                                        <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
+                                        :
+                                        <p className="p-4">Select a place type to start</p>
 
-                                            {/* Editorial Summary */}
-                                            {place.editorialSummary && (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {place.editorialSummary.text}
-                                                </p>
-                                            )}
-                                        </li>
-                                    </a>
-                                ))}
-                            </ul>
-                        ) : (
-                            isLoading ? 
-                            <p className="p-4">Loading places...</p>
-                            :
-                            !error && bounds && textQuery.trim() ?
-                            <p className="p-4">No places found matching '{textQuery}' in this map area. Try a different search or zoom level.</p>
-                            :
-                            <p className="p-4">Select a place type to start</p>
-
-                        )}
+                            )}
                         </div>
                     </div>
                 </div>
@@ -659,30 +657,30 @@ function NearbyPlaces() {
                     </div>
                 </div>
             )}
-            
+
             {/* Settings Modal */}
             {showSettings && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/25 bg-opacity-50 flex items-center justify-center z-50"
                     onClick={handleSettingsBackdropClick}
                 >
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4">
                         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Settings</h2>
-                        
+
                         <div className="mb-6">
                             <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Google Maps API Key</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                 Update or remove your API key. A key with Places API enabled is required.
                             </p>
-                            
+
                             <div className="space-y-4">
                                 <div className="flex gap-2">
                                     <div className="flex-1">
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             API Key
                                         </label>
-                                        <input 
-                                            type="password" 
+                                        <input
+                                            type="password"
                                             value={inputApiKey}
                                             onChange={(e) => setInputApiKey(e.target.value)}
                                             placeholder="Enter new API key"
@@ -700,15 +698,15 @@ function NearbyPlaces() {
                                         </svg>
                                     </button>
                                 </div>
-                                
+
                                 {error && (
                                     <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-900 dark:border-red-600 dark:text-red-300">
                                         {error}
                                     </div>
                                 )}
-                                
+
                                 <div className="flex gap-3">
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setShowSettings(false);
                                             setInputApiKey('');
@@ -718,7 +716,7 @@ function NearbyPlaces() {
                                     >
                                         Cancel
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={handleSaveApiKey}
                                         disabled={!inputApiKey}
                                         className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
@@ -728,10 +726,10 @@ function NearbyPlaces() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Your API key is stored locally in your browser's localStorage.<br/>
+                                Your API key is stored locally in your browser's localStorage.<br />
                                 <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
                                     How to get an API Key
                                 </a>
